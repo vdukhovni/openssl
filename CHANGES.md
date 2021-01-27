@@ -47,6 +47,10 @@ OpenSSL 3.2
 
    *Graham Woodward*
 
+ * Add Raw Public Key (RFC7250) support.
+
+   *Todd Short*
+
  * Major refactor of the libssl record layer
 
    *Matt Caswell*

@@ -370,6 +370,7 @@ static const ERR_STRING_DATA SSL_str_reasons[] = {
     "required cipher missing"},
     {ERR_PACK(ERR_LIB_SSL, 0, SSL_R_REQUIRED_COMPRESSION_ALGORITHM_MISSING),
     "required compression algorithm missing"},
+    {ERR_PACK(ERR_LIB_SSL, 0, SSL_R_RPK_DISABLED), "rpk disabled"},
     {ERR_PACK(ERR_LIB_SSL, 0, SSL_R_SCSV_RECEIVED_WHEN_RENEGOTIATING),
     "scsv received when renegotiating"},
     {ERR_PACK(ERR_LIB_SSL, 0, SSL_R_SCT_VERIFICATION_FAILED),
