@@ -879,6 +879,11 @@ SSL *ossl_ssl_connection_new_int(SSL_CTX *ctx, const SSL_METHOD *method)
 #ifndef OPENSSL_NO_COMP_ALG
     memcpy(s->cert_comp_prefs, ctx->cert_comp_prefs, sizeof(s->cert_comp_prefs));
 #endif
+#ifndef OPENSSL_NO_RPK
+    s->peer_rpks = sk_EVP_PKEY_new_null();
+    if (s->peer_rpks == NULL)
+        goto sslerr;
+#endif
 
 #ifndef OPENSSL_NO_CT
     if (!SSL_set_ct_validation_callback(ssl, ctx->ct_validation_callback,
@@ -1383,6 +1388,9 @@ void ossl_ssl_connection_free(SSL *ssl)
     OPENSSL_free(s->ext.peer_ecpointformats);
     OPENSSL_free(s->ext.supportedgroups);
     OPENSSL_free(s->ext.peer_supportedgroups);
+#ifndef OPENSSL_NO_RPK
+    sk_EVP_PKEY_pop_free(s->peer_rpks, EVP_PKEY_free);
+#endif
     sk_X509_EXTENSION_pop_free(s->ext.ocsp.exts, X509_EXTENSION_free);
 #ifndef OPENSSL_NO_OCSP
     sk_OCSP_RESPID_pop_free(s->ext.ocsp.ids, OCSP_RESPID_free);
@@ -4222,6 +4230,39 @@ void ssl_set_masks(SSL_CONNECTION *s)
     }
 
     mask_a |= SSL_aNULL;
+
+#ifndef OPENSSL_NO_RPK
+    /*
+     * You can do anything with an RPK key, since there's no cert to restrict it
+     * But we need to check for private keys
+     */
+    if (tls12_rpk_and_privkey(s, SSL_PKEY_RSA)) {
+        mask_a |= SSL_aRSA;
+        mask_k |= SSL_kRSA;
+    }
+    if (tls12_rpk_and_privkey(s, SSL_PKEY_RSA_PSS_SIGN)) {
+        if (TLS1_get_version(&s->ssl) == TLS1_2_VERSION)
+            mask_a |= SSL_aRSA;
+    }
+    if (tls12_rpk_and_privkey(s, SSL_PKEY_DSA_SIGN))
+        mask_a |= SSL_aDSS;
+    if (tls12_rpk_and_privkey(s, SSL_PKEY_ECC))
+        mask_a |= SSL_aECDSA;
+    if (tls12_rpk_and_privkey(s, SSL_PKEY_ED25519) || tls12_rpk_and_privkey(s, SSL_PKEY_ED448)) {
+        if (TLS1_get_version(&s->ssl) == TLS1_2_VERSION)
+            mask_a |= SSL_aECDSA;
+    }
+# ifndef OPENSSL_NO_GOST
+    if (tls12_rpk_and_privkey(s, SSL_PKEY_GOST01)) {
+        mask_k |= SSL_kGOST;
+        mask_a |= SSL_aGOST01;
+    }
+    if (tls12_rpk_and_privkey(s, SSL_PKEY_GOST12_256) || tls12_rpk_and_privkey(s, SSL_PKEY_GOST12_512)) {
+        mask_k |= SSL_kGOST | SSL_kGOST18;
+        mask_a |= SSL_aGOST12;
+    }
+# endif
+#endif
 
     /*
      * An ECC certificate may be usable for ECDH and/or ECDSA cipher suites
@@ -7210,4 +7251,52 @@ int SSL_stream_conclude(SSL *ssl, uint64_t flags)
 #else
     return 0;
 #endif
+}
+
+EVP_PKEY *SSL_get0_peer_rpk(const SSL *s)
+{
+    SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
+
+    if (sc == NULL || sc->session == NULL)
+        return NULL;
+    return sc->session->peer_rpk;
+}
+
+int SSL_add1_expected_peer_rpk(SSL *s, EVP_PKEY *pkey)
+{
+    SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
+
+    if (sc == NULL || pkey == NULL)
+        return 0;
+    if (EVP_PKEY_up_ref(pkey) < 0)
+        return 0;
+    if (!sk_EVP_PKEY_push(sc->peer_rpks, pkey)) {
+        EVP_PKEY_free(pkey);
+        return 0;
+    }
+    return 1;
+}
+
+int SSL_rpk_send_negotiated(const SSL *s)
+{
+    SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
+
+    if (sc == NULL)
+        return 0;
+
+    if (sc->server)
+        return sc->ext.server_cert_type == TLSEXT_cert_type_rpk;
+    return sc->ext.client_cert_type == TLSEXT_cert_type_rpk;
+}
+
+int SSL_rpk_receive_negotiated(const SSL *s)
+{
+    SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
+
+    if (sc == NULL)
+        return 0;
+
+    if (sc->server)
+        return sc->ext.client_cert_type == TLSEXT_cert_type_rpk;
+    return sc->ext.server_cert_type == TLSEXT_cert_type_rpk;
 }

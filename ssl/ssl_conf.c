@@ -402,6 +402,8 @@ static int cmd_Options(SSL_CONF_CTX *cctx, const char *value)
         SSL_FLAG_TBL_INV("RxCertificateCompression", SSL_OP_NO_RX_CERTIFICATE_COMPRESSION),
         SSL_FLAG_TBL("KTLSTxZerocopySendfile", SSL_OP_ENABLE_KTLS_TX_ZEROCOPY_SENDFILE),
         SSL_FLAG_TBL("IgnoreUnexpectedEOF", SSL_OP_IGNORE_UNEXPECTED_EOF),
+        SSL_FLAG_TBL("ServerRPK", SSL_OP_RPK_SERVER),
+        SSL_FLAG_TBL("ClientRPK", SSL_OP_RPK_CLIENT),
     };
     if (value == NULL)
         return -3;
