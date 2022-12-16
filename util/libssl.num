@@ -546,8 +546,6 @@ SSL_stream_conclude                     ?	3_2_0	EXIST::FUNCTION:
 SSL_add1_expected_peer_rpk              ?	3_2_0	EXIST::FUNCTION:
 SSL_get0_peer_rpk                       ?	3_2_0	EXIST::FUNCTION:
 SSL_SESSION_get0_peer_rpk               ?	3_2_0	EXIST::FUNCTION:
-SSL_rpk_send_negotiated                 ?	3_2_0	EXIST::FUNCTION:
-SSL_rpk_receive_negotiated              ?	3_2_0	EXIST::FUNCTION:
 SSL_set1_client_cert_type               ?	3_2_0	EXIST::FUNCTION:
 SSL_set1_server_cert_type               ?	3_2_0	EXIST::FUNCTION:
 SSL_CTX_set1_client_cert_type           ?	3_2_0	EXIST::FUNCTION:
@@ -556,3 +554,5 @@ SSL_get0_server_cert_type               ?	3_2_0	EXIST::FUNCTION:
 SSL_CTX_get0_client_cert_type           ?	3_2_0	EXIST::FUNCTION:
 SSL_CTX_get0_server_cert_type           ?	3_2_0	EXIST::FUNCTION:
 SSL_get0_client_cert_type               ?	3_2_0	EXIST::FUNCTION:
+SSL_get_negotiated_client_cert_type     ?	3_2_0	EXIST::FUNCTION:
+SSL_get_negotiated_server_cert_type     ?	3_2_0	EXIST::FUNCTION:
