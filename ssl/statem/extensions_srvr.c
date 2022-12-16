@@ -1970,13 +1970,32 @@ EXT_RETURN tls_construct_stoc_client_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
     return EXT_RETURN_NOT_SENT;
 }
 
+/* One of |pref|, |other| is configured and the values are sanitized */
+int reconcile_cert_type(const unsigned char *pref, size_t pref_len,
+                        const unsigned char *other, size_t other_len,
+                        uint8_t *chosen_cert_type)
+{
+    size_t i, j;
+
+    for (i = 0; i < pref_len; i++) {
+        for (j = 0; j < other_len; j++) {
+            if (pref[i] == other[j]) {
+                *chosen_cert_type = pref[i];
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 int tls_parse_ctos_client_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
                                     unsigned int context,
                                     X509 *x, size_t chainidx)
 {
 #ifndef OPENSSL_NO_RPK
     PACKET supported_cert_types;
-    unsigned int type;
+    const unsigned char *data;
+    size_t len;
 
     /* Ignore the extension */
     if (sc->client_cert_type == NULL) {
@@ -1989,19 +2008,22 @@ int tls_parse_ctos_client_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
         SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
         return 0;
     }
-    if (PACKET_remaining(&supported_cert_types) == 0) {
+    if ((len = PACKET_remaining(&supported_cert_types)) == 0) {
         SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
         return 0;
     }
-    while (PACKET_get_1(&supported_cert_types, &type)) {
-        if (type == TLSEXT_cert_type_x509 || type == TLSEXT_cert_type_rpk) {
-            /* TODO: NEED RECONCILIATION HERE */
-            /* mark as successfully received */
-            sc->ext.client_cert_type_ctos = 1;
-            sc->ext.client_cert_type = type;
-            return 1;
-        }
+    if (!PACKET_get_bytes(&supported_cert_types, &data, len)) {
+        SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
+        return 0;
     }
+    /* client_cert_type: client (peer) has priority */
+    sc->ext.client_cert_type_ctos = reconcile_cert_type(data, len,
+                                                        sc->client_cert_type, sc->client_cert_type_len,
+                                                        &sc->ext.client_cert_type);
+
+    if (sc->ext.client_cert_type_ctos)
+        return 1;
+
     /* Did not receive an acceptable cert type */
     SSLfatal(sc, SSL_AD_UNSUPPORTED_CERTIFICATE, SSL_R_BAD_EXTENSION);
     return 0;
@@ -2043,7 +2065,8 @@ int tls_parse_ctos_server_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
 {
 #ifndef OPENSSL_NO_RPK
     PACKET supported_cert_types;
-    unsigned int type;
+    const unsigned char *data;
+    size_t len;
 
     /* Ignore the extension */
     if (sc->server_cert_type == NULL) {
@@ -2052,20 +2075,26 @@ int tls_parse_ctos_server_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
         return 1;
     }
 
-    if (!PACKET_as_length_prefixed_1(pkt, &supported_cert_types)
-            || PACKET_remaining(&supported_cert_types) == 0) {
+    if (!PACKET_as_length_prefixed_1(pkt, &supported_cert_types)) {
         SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
         return 0;
     }
-    while (PACKET_get_1(&supported_cert_types, &type)) {
-        if (type == TLSEXT_cert_type_x509 || type == TLSEXT_cert_type_rpk) {
-            /* TODO: NEED RECONCILIATION HERE */
-            /* mark as successfully received */
-            sc->ext.server_cert_type_ctos = 1;
-            sc->ext.server_cert_type = type;
-            return 1;
-        }
+
+    if ((len = PACKET_remaining(&supported_cert_types)) == 0) {
+        SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
+        return 0;
     }
+    if (!PACKET_get_bytes(&supported_cert_types, &data, len)) {
+        SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
+        return 0;
+    }
+    /* server_cert_type: server (this) has priority */
+    sc->ext.server_cert_type_ctos = reconcile_cert_type(sc->server_cert_type, sc->server_cert_type_len,
+                                                        data, len,
+                                                        &sc->ext.server_cert_type);
+    if (sc->ext.server_cert_type_ctos)
+        return 1;
+
     /* Did not receive an acceptable cert type */
     SSLfatal(sc, SSL_AD_UNSUPPORTED_CERTIFICATE, SSL_R_BAD_EXTENSION);
     return 0;
