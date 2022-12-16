@@ -32,6 +32,7 @@ static char *privkey448 = NULL;
 static char *cert25519 = NULL;
 static char *privkey25519 = NULL;
 
+static unsigned char cert_type_rpk[] = { TLSEXT_cert_type_rpk, TLSEXT_cert_type_x509 };
 static unsigned char SID_CTX[] = { 'r', 'p', 'k' };
 
 static int rpk_verify_cb(int ok, X509_STORE_CTX *ctx)
@@ -40,10 +41,10 @@ static int rpk_verify_cb(int ok, X509_STORE_CTX *ctx)
 }
 /*
  * Test dimensions:
- *   (2) SSL_OP_RPK_SERVER off/on for server
- *   (2) SSL_OP_RPK_CLIENT off/on for server
- *   (2) SSL_OP_RPK_SERVER off/on for client
- *   (2) SSL_OP_RPK_CLIENT off/on for client
+ *   (2) server_cert_type RPK off/on for server
+ *   (2) client_cert_type RPK off/on for server
+ *   (2) server_cert_type RPK off/on for client
+ *   (2) client_cert_type RPK off/on for client
  *   (4) RSA vs ECDSA vs Ed25519 vs Ed448 certificates
  *   (2) TLSv1.2 vs TLSv1.3
  *
@@ -86,7 +87,6 @@ static int test_rpk(int idx)
     int idx_cert, idx_prot;
     int client_auth = 0;
     int resumption = 0;
-    uint64_t server_op = 0, client_op = 0;
 
     if (!TEST_int_le(idx, RPK_TESTS * RPK_DIMS))
         return 0;
@@ -111,15 +111,6 @@ static int test_rpk(int idx)
     root_pkey = X509_get0_pubkey(root_x509);
     if (!TEST_ptr(root_pkey))
         goto end;
-
-    if (idx_server_server_rpk)
-        server_op |= SSL_OP_RPK_SERVER;
-    if (idx_server_client_rpk)
-        server_op |= SSL_OP_RPK_CLIENT;
-    if (idx_client_server_rpk)
-        client_op |= SSL_OP_RPK_SERVER;
-    if (idx_client_client_rpk)
-        client_op |= SSL_OP_RPK_CLIENT;
 
     switch (idx_cert) {
         case 0:
@@ -198,10 +189,18 @@ static int test_rpk(int idx)
                                        &sctx, &cctx, NULL, NULL)))
         goto end;
 
-    if (!TEST_true(SSL_CTX_set_options(sctx, server_op)))
-        goto end;
-    if (!TEST_true(SSL_CTX_set_options(cctx, client_op)))
-        goto end;
+    if (idx_server_server_rpk)
+        if (!TEST_true(SSL_CTX_set1_server_cert_type(sctx, cert_type_rpk, sizeof(cert_type_rpk))))
+            goto end;
+    if (idx_server_client_rpk)
+        if (!TEST_true(SSL_CTX_set1_client_cert_type(sctx, cert_type_rpk, sizeof(cert_type_rpk))))
+            goto end;
+    if (idx_client_server_rpk)
+        if (!TEST_true(SSL_CTX_set1_server_cert_type(cctx, cert_type_rpk, sizeof(cert_type_rpk))))
+            goto end;
+    if (idx_client_client_rpk)
+        if (!TEST_true(SSL_CTX_set1_client_cert_type(cctx, cert_type_rpk, sizeof(cert_type_rpk))))
+            goto end;
     if (!TEST_true(SSL_CTX_set_session_id_context(sctx, SID_CTX, sizeof(SID_CTX))))
         goto end;
     if (!TEST_true(SSL_CTX_set_session_id_context(cctx, SID_CTX, sizeof(SID_CTX))))
@@ -318,13 +317,13 @@ static int test_rpk(int idx)
         if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))
             goto end;
         /* Since there's no cert, this is expected to fail without RPK support */
-        if ((server_op & client_op & SSL_OP_RPK_CLIENT) == 0)
+        if (!idx_server_client_rpk || !idx_client_client_rpk)
             expected = 0;
         SSL_set_verify(serverssl, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, rpk_verify_cb);
         client_auth = 1;
         break;
     case 11:
-        if ((server_op & client_op & SSL_OP_RPK_SERVER) == 0) {
+        if (!idx_server_server_rpk || !idx_client_server_rpk) {
             testresult = TEST_skip("Only testing resumption with server RPK");
             goto end;
         }
@@ -333,7 +332,7 @@ static int test_rpk(int idx)
         resumption = 1;
         break;
     case 12:
-        if ((server_op & client_op & SSL_OP_RPK_SERVER) == 0) {
+        if (!idx_server_server_rpk || !idx_client_server_rpk) {
             testresult = TEST_skip("Only testing resumption with server RPK");
             goto end;
         }
@@ -344,11 +343,11 @@ static int test_rpk(int idx)
         resumption = 1;
         break;
     case 13:
-        if ((server_op & client_op & SSL_OP_RPK_SERVER) == 0) {
+        if (!idx_server_server_rpk || !idx_client_server_rpk) {
             testresult = TEST_skip("Only testing resumption with server RPK");
             goto end;
         }
-        if ((server_op & client_op & SSL_OP_RPK_CLIENT) == 0) {
+        if (!idx_server_client_rpk || !idx_client_client_rpk) {
             testresult = TEST_skip("Only testing client authentication resumption with client RPK");
             goto end;
         }
@@ -368,11 +367,11 @@ static int test_rpk(int idx)
         resumption = 1;
         break;
     case 14:
-        if ((server_op & client_op & SSL_OP_RPK_SERVER) == 0) {
+        if (!idx_server_server_rpk || !idx_client_server_rpk) {
             testresult = TEST_skip("Only testing resumption with server RPK");
             goto end;
         }
-        if ((server_op & client_op & SSL_OP_RPK_CLIENT) == 0) {
+        if (!idx_server_client_rpk || !idx_client_client_rpk) {
             testresult = TEST_skip("Only testing client authentication resumption with client RPK");
             goto end;
         }
@@ -401,7 +400,7 @@ static int test_rpk(int idx)
 
     /* Make sure client gets RPK or certificate as configured */
     if (expected == 1) {
-        if ((server_op & client_op & SSL_OP_RPK_SERVER) != 0) {
+        if (idx_server_server_rpk && idx_client_server_rpk) {
             if (!TEST_ptr(SSL_get0_peer_rpk(clientssl)))
                 goto end;
             if (!TEST_true(SSL_rpk_send_negotiated(serverssl)))
@@ -432,7 +431,7 @@ static int test_rpk(int idx)
 
     /* Make sure server gets an RPK or certificate as configured */
     if (client_auth) {
-        if ((server_op & client_op & SSL_OP_RPK_CLIENT) != 0) {
+        if (idx_server_client_rpk && idx_client_client_rpk) {
             if (!TEST_ptr(SSL_get0_peer_rpk(serverssl)))
                 goto end;
             if (!TEST_true(SSL_rpk_send_negotiated(clientssl)))

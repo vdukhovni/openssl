@@ -1953,7 +1953,7 @@ EXT_RETURN tls_construct_stoc_client_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
 #ifndef OPENSSL_NO_RPK
     if ((send_certificate_request(sc) || sc->post_handshake_auth == SSL_PHA_EXT_RECEIVED)
             && sc->ext.client_cert_type_ctos
-            && (sc->options & SSL_OP_RPK_CLIENT) != 0) {
+            && sc->client_cert_type != NULL) {
         if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_client_cert_type)
                 || !WPACKET_start_sub_packet_u16(pkt)
                 || !WPACKET_put_bytes_u8(pkt, sc->ext.client_cert_type)
@@ -1979,19 +1979,23 @@ int tls_parse_ctos_client_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
     unsigned int type;
 
     /* Ignore the extension */
-    if ((sc->options & SSL_OP_RPK_CLIENT) == 0) {
+    if (sc->client_cert_type == NULL) {
         sc->ext.client_cert_type_ctos = 0;
         sc->ext.client_cert_type = TLSEXT_cert_type_x509;
         return 1;
     }
 
-    if (!PACKET_as_length_prefixed_1(pkt, &supported_cert_types)
-            || PACKET_remaining(&supported_cert_types) == 0) {
+    if (!PACKET_as_length_prefixed_1(pkt, &supported_cert_types)) {
+        SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
+        return 0;
+    }
+    if (PACKET_remaining(&supported_cert_types) == 0) {
         SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
         return 0;
     }
     while (PACKET_get_1(&supported_cert_types, &type)) {
         if (type == TLSEXT_cert_type_x509 || type == TLSEXT_cert_type_rpk) {
+            /* TODO: NEED RECONCILIATION HERE */
             /* mark as successfully received */
             sc->ext.client_cert_type_ctos = 1;
             sc->ext.client_cert_type = type;
@@ -2016,8 +2020,7 @@ EXT_RETURN tls_construct_stoc_server_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
         return EXT_RETURN_NOT_SENT;
     }
 #ifndef OPENSSL_NO_RPK
-    if (sc->ext.server_cert_type_ctos
-            && (sc->options & SSL_OP_RPK_SERVER) != 0) {
+    if (sc->ext.server_cert_type_ctos && sc->server_cert_type != NULL) {
         if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_server_cert_type)
                 || !WPACKET_start_sub_packet_u16(pkt)
                 || !WPACKET_put_bytes_u8(pkt, sc->ext.server_cert_type)
@@ -2043,7 +2046,7 @@ int tls_parse_ctos_server_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
     unsigned int type;
 
     /* Ignore the extension */
-    if ((sc->options & SSL_OP_RPK_SERVER) == 0) {
+    if (sc->server_cert_type == NULL) {
         sc->ext.server_cert_type_ctos = 0;
         sc->ext.server_cert_type = TLSEXT_cert_type_x509;
         return 1;
@@ -2056,6 +2059,7 @@ int tls_parse_ctos_server_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
     }
     while (PACKET_get_1(&supported_cert_types, &type)) {
         if (type == TLSEXT_cert_type_x509 || type == TLSEXT_cert_type_rpk) {
+            /* TODO: NEED RECONCILIATION HERE */
             /* mark as successfully received */
             sc->ext.server_cert_type_ctos = 1;
             sc->ext.server_cert_type = type;

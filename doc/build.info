@@ -2627,6 +2627,10 @@ DEPEND[html/man3/SSL_set1_host.html]=man3/SSL_set1_host.pod
 GENERATE[html/man3/SSL_set1_host.html]=man3/SSL_set1_host.pod
 DEPEND[man/man3/SSL_set1_host.3]=man3/SSL_set1_host.pod
 GENERATE[man/man3/SSL_set1_host.3]=man3/SSL_set1_host.pod
+DEPEND[html/man3/SSL_set1_server_cert_type.html]=man3/SSL_set1_server_cert_type.pod
+GENERATE[html/man3/SSL_set1_server_cert_type.html]=man3/SSL_set1_server_cert_type.pod
+DEPEND[man/man3/SSL_set1_server_cert_type.3]=man3/SSL_set1_server_cert_type.pod
+GENERATE[man/man3/SSL_set1_server_cert_type.3]=man3/SSL_set1_server_cert_type.pod
 DEPEND[html/man3/SSL_set_async_callback.html]=man3/SSL_set_async_callback.pod
 GENERATE[html/man3/SSL_set_async_callback.html]=man3/SSL_set_async_callback.pod
 DEPEND[man/man3/SSL_set_async_callback.3]=man3/SSL_set_async_callback.pod
@@ -3504,6 +3508,7 @@ html/man3/SSL_read_early_data.html \
 html/man3/SSL_rstate_string.html \
 html/man3/SSL_session_reused.html \
 html/man3/SSL_set1_host.html \
+html/man3/SSL_set1_server_cert_type.html \
 html/man3/SSL_set_async_callback.html \
 html/man3/SSL_set_bio.html \
 html/man3/SSL_set_blocking_mode.html \
@@ -4128,6 +4133,7 @@ man/man3/SSL_read_early_data.3 \
 man/man3/SSL_rstate_string.3 \
 man/man3/SSL_session_reused.3 \
 man/man3/SSL_set1_host.3 \
+man/man3/SSL_set1_server_cert_type.3 \
 man/man3/SSL_set_async_callback.3 \
 man/man3/SSL_set_bio.3 \
 man/man3/SSL_set_blocking_mode.3 \

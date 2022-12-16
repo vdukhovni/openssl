@@ -1,0 +1,85 @@
+=pod
+
+=head1 NAME
+
+SSL_set1_client_cert_type,
+SSL_set1_server_cert_type,
+SSL_CTX_set1_client_cert_type,
+SSL_CTX_set1_server_cert_type,
+SSL_get0_client_cert_type,
+SSL_get0_server_cert_type,
+SSL_CTX_get0_client_cert_type,
+SSL_CTX_get0_server_cert_type - certificate type (RFC7250) support
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_set1_client_cert_type(SSL *s, const unsigned char *val, size_t len);
+ int SSL_set1_server_cert_type(SSL *s, const unsigned char *val, size_t len);
+ int SSL_CTX_set1_client_cert_type(SSL_CTX *ctx, const unsigned char *val, size_t len);
+ int SSL_CTX_set1_server_cert_type(SSL_CTX *ctx, const unsigned char *val, size_t len);
+ int SSL_get0_client_cert_type(SSL *s, unsigned char **t, size_t *len);
+ int SSL_get0_server_cert_type(SSL *s, unsigned char **t, size_t *len);
+ int SSL_CTX_get0_client_cert_type(SSL_CTX *ctx, unsigned char **t, size_t *len);
+ int SSL_CTX_get0_server_cert_type(SSL_CTX *s, unsigned char **t, size_t *len);
+
+=head1 DESCRIPTION
+
+The SSL_set1_client_cert_type() and SSL_CTX_set1_client_cert_type() set the
+values for the client certificate type extension. The SSL_get0_client_cert_type()
+and SSL_CTX_get0_client_cert_type() retreive the values to be used in the client
+certificate type extension.
+
+The SSL_set1_server_cert_type() and SSL_CTX_set1_server_cert_type() set the
+values for the server certificate type extension. The SSL_get0_server_cert_type()
+and SSL_CTX_get0_server_cert_type() retreive the values to be used in the server
+certificate type extension.
+
+=head1 NOTES
+
+The certificate type extensions are used to negotiate the certificate type to be
+used in the handshake. The two supported values are:
+
+=over 4
+
+=item TLSEXT_cert_type_x509
+
+Which corresponds to an X.509 certificate normally used in TLS.
+
+=item TLSEXT_cert_type_rpk
+
+Which corresponds to a raw public key.
+
+=back
+
+If B<val> is set to a non-NULL value, then the extension is sent in the handshake.
+If b<val> is set to a NULL value (and B<len> is 0), then the extension is
+disabled. The default value is NULL, meaning the extension is not sent, and
+X.509 certificates are used in the handshake.
+
+Raw public keys may be used in place of certificates when specified in the
+certificate type and negotiated. When raw public keys are used, the certificate
+verify callback is not called. Raw public keys have no subject, issuer,
+validity dates nor digital signature.
+
+=head1 RETURN VALUES
+
+All functions return 1 on success and 0 on failure.
+
+The memory returned from the get0 functions must not be freed.
+
+=head1 SEE ALSO
+
+L<SSL_get0_peer_rpk(3)>,
+L<SSL_use_certificate(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 3.2.
+
+=head1 COPYRIGHT
+
+Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+
+=cut

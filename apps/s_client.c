@@ -75,6 +75,9 @@ static int ocsp_resp_cb(SSL *s, void *arg);
 static int ldap_ExtendedResponse_parse(const char *buf, long rem);
 static int is_dNS_name(const char *host);
 
+static const unsigned char cert_type_rpk[] = { TLSEXT_cert_type_rpk, TLSEXT_cert_type_x509 };
+static int enable_server_rpk = 0;
+
 static int saved_errno;
 
 static void save_errno(void)
@@ -907,7 +910,6 @@ int s_client_main(int argc, char **argv)
     char *psksessf = NULL;
     int enable_pha = 0;
 #ifndef OPENSSL_NO_RPK
-    int enable_server_rpk = 0;
     int enable_client_rpk = 0;
     X509 *peer_rpk_cert = NULL;
     EVP_PKEY *peer_rpk = NULL;
@@ -2027,9 +2029,9 @@ int s_client_main(int argc, char **argv)
 
 #ifndef OPENSSL_NO_RPK
     if (enable_client_rpk)
-        SSL_set_options(con, SSL_OP_RPK_CLIENT);
+        SSL_set1_client_cert_type(con, cert_type_rpk, sizeof(cert_type_rpk));
     if (enable_server_rpk) {
-        SSL_set_options(con, SSL_OP_RPK_SERVER);
+        SSL_set1_server_cert_type(con, cert_type_rpk, sizeof(cert_type_rpk));
         if (peer_rpk != NULL) {
             if (!SSL_add1_expected_peer_rpk(con, peer_rpk)) {
                 BIO_printf(bio_err, "Error setting expected server RPK\n");
@@ -3325,7 +3327,7 @@ static void print_stuff(BIO *bio, SSL *s, int full)
             BIO_printf(bio, "Client-to-server raw public key negotiated\n");
         if (SSL_rpk_receive_negotiated(s))
             BIO_printf(bio, "Server-to-client raw public key negotiated\n");
-        if ((SSL_get_options(s) & SSL_OP_RPK_SERVER) != 0) {
+        if (enable_server_rpk) {
             EVP_PKEY *peer_rpk = SSL_get0_peer_rpk(s);
 
             if (peer_rpk != NULL) {
