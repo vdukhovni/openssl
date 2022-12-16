@@ -2508,11 +2508,11 @@ static ossl_inline int ssl_has_cert(const SSL_CONNECTION *s, int idx)
 {
     if (idx < 0 || idx >= SSL_PKEY_NUM)
         return 0;
-# ifndef OPENSSL_NO_RPK
+
     /* If RPK is enabled for this SSL... only require private key */
     if (ssl_has_cert_type(s, TLSEXT_cert_type_rpk))
         return s->cert->pkeys[idx].privatekey != NULL;
-# endif
+
     return s->cert->pkeys[idx].x509 != NULL
         && s->cert->pkeys[idx].privatekey != NULL;
 }

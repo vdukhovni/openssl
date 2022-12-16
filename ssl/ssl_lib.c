@@ -879,11 +879,9 @@ SSL *ossl_ssl_connection_new_int(SSL_CTX *ctx, const SSL_METHOD *method)
 #ifndef OPENSSL_NO_COMP_ALG
     memcpy(s->cert_comp_prefs, ctx->cert_comp_prefs, sizeof(s->cert_comp_prefs));
 #endif
-#ifndef OPENSSL_NO_RPK
     s->peer_rpks = sk_EVP_PKEY_new_null();
     if (s->peer_rpks == NULL)
         goto sslerr;
-#endif
     if (ctx->client_cert_type != NULL) {
         s->client_cert_type = OPENSSL_memdup(ctx->client_cert_type, ctx->client_cert_type_len);
         if (s->client_cert_type == NULL)
@@ -1400,9 +1398,7 @@ void ossl_ssl_connection_free(SSL *ssl)
     OPENSSL_free(s->ext.peer_ecpointformats);
     OPENSSL_free(s->ext.supportedgroups);
     OPENSSL_free(s->ext.peer_supportedgroups);
-#ifndef OPENSSL_NO_RPK
     sk_EVP_PKEY_pop_free(s->peer_rpks, EVP_PKEY_free);
-#endif
     sk_X509_EXTENSION_pop_free(s->ext.ocsp.exts, X509_EXTENSION_free);
 #ifndef OPENSSL_NO_OCSP
     sk_OCSP_RESPID_pop_free(s->ext.ocsp.ids, OCSP_RESPID_free);
@@ -4249,7 +4245,6 @@ void ssl_set_masks(SSL_CONNECTION *s)
 
     mask_a |= SSL_aNULL;
 
-#ifndef OPENSSL_NO_RPK
     /*
      * You can do anything with an RPK key, since there's no cert to restrict it
      * But we need to check for private keys
@@ -4270,7 +4265,7 @@ void ssl_set_masks(SSL_CONNECTION *s)
         if (TLS1_get_version(&s->ssl) == TLS1_2_VERSION)
             mask_a |= SSL_aECDSA;
     }
-# ifndef OPENSSL_NO_GOST
+#ifndef OPENSSL_NO_GOST
     if (tls12_rpk_and_privkey(s, SSL_PKEY_GOST01)) {
         mask_k |= SSL_kGOST;
         mask_a |= SSL_aGOST01;
@@ -4279,7 +4274,6 @@ void ssl_set_masks(SSL_CONNECTION *s)
         mask_k |= SSL_kGOST | SSL_kGOST18;
         mask_a |= SSL_aGOST12;
     }
-# endif
 #endif
 
     /*

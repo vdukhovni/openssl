@@ -2021,7 +2021,6 @@ EXT_RETURN tls_construct_ctos_client_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
                                                X509 *x, size_t chainidx)
 {
     sc->ext.client_cert_type_ctos = 0;
-#ifndef OPENSSL_NO_RPK
     if (sc->client_cert_type != NULL) {
         if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_client_cert_type)
                 || !WPACKET_start_sub_packet_u16(pkt)
@@ -2033,7 +2032,6 @@ EXT_RETURN tls_construct_ctos_client_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
         sc->ext.client_cert_type_ctos = 1;
         return EXT_RETURN_SENT;
     }
-#endif
     return EXT_RETURN_NOT_SENT;
 }
 
@@ -2041,7 +2039,6 @@ int tls_parse_stoc_client_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
                                     unsigned int context,
                                     X509 *x, size_t chainidx)
 {
-#ifndef OPENSSL_NO_RPK
     unsigned int type;
 
     if (PACKET_remaining(pkt) != 1) {
@@ -2068,7 +2065,6 @@ int tls_parse_stoc_client_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
         return 0;
     }
     sc->ext.client_cert_type = type;
-#endif
     return 1;
 }
 
@@ -2077,7 +2073,6 @@ EXT_RETURN tls_construct_ctos_server_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
                                                X509 *x, size_t chainidx)
 {
     sc->ext.server_cert_type_ctos = 0;
-#ifndef OPENSSL_NO_RPK
     if (sc->server_cert_type != NULL) {
         if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_server_cert_type)
                 || !WPACKET_start_sub_packet_u16(pkt)
@@ -2089,7 +2084,6 @@ EXT_RETURN tls_construct_ctos_server_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
         sc->ext.server_cert_type_ctos = 1;
         return EXT_RETURN_SENT;
     }
-#endif
     return EXT_RETURN_NOT_SENT;
 }
 
@@ -2097,7 +2091,6 @@ int tls_parse_stoc_server_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
                                     unsigned int context,
                                     X509 *x, size_t chainidx)
 {
-#ifndef OPENSSL_NO_RPK
     unsigned int type;
 
     if (PACKET_remaining(pkt) != 1) {
@@ -2124,6 +2117,5 @@ int tls_parse_stoc_server_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
         return 0;
     }
     sc->ext.server_cert_type = type;
-#endif
     return 1;
 }

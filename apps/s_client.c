@@ -471,11 +471,9 @@ typedef enum OPTION_choice {
 #endif
     OPT_DANE_TLSA_RRDATA, OPT_DANE_EE_NO_NAME,
     OPT_ENABLE_PHA,
-#ifndef OPENSSL_NO_RPK
     OPT_ENABLE_SERVER_RPK,
     OPT_ENABLE_CLIENT_RPK,
     OPT_PEER_RPK,
-#endif
     OPT_SCTP_LABEL_BUG,
     OPT_KTLS,
     OPT_R_ENUM, OPT_PROV_ENUM
@@ -666,11 +664,9 @@ const OPTIONS s_client_options[] = {
 #endif
     {"early_data", OPT_EARLY_DATA, '<', "File to send as early data"},
     {"enable_pha", OPT_ENABLE_PHA, '-', "Enable post-handshake-authentication"},
-#ifndef OPENSSL_NO_RPK
     {"enable_server_rpk", OPT_ENABLE_SERVER_RPK, '-', "Enable raw public keys (RFC7250) from the server"},
     {"enable_client_rpk", OPT_ENABLE_CLIENT_RPK, '-', "Enable raw public keys (RFC7250) from the client"},
     {"peer_rpk", OPT_PEER_RPK, '<', "PEM-encoded public-key or certificate with server RPK"},
-#endif
 #ifndef OPENSSL_NO_SRTP
     {"use_srtp", OPT_USE_SRTP, 's',
      "Offer SRTP key management with a colon-separated profile list"},
@@ -909,12 +905,10 @@ int s_client_main(int argc, char **argv)
 #endif
     char *psksessf = NULL;
     int enable_pha = 0;
-#ifndef OPENSSL_NO_RPK
     int enable_client_rpk = 0;
     X509 *peer_rpk_cert = NULL;
     EVP_PKEY *peer_rpk = NULL;
     char *peer_rpk_file = NULL;
-#endif
 #ifndef OPENSSL_NO_SCTP
     int sctp_label_bug = 0;
 #endif
@@ -1508,7 +1502,6 @@ int s_client_main(int argc, char **argv)
             enable_ktls = 1;
 #endif
             break;
-#ifndef OPENSSL_NO_RPK
         case OPT_ENABLE_SERVER_RPK:
             enable_server_rpk = 1;
             break;
@@ -1518,7 +1511,6 @@ int s_client_main(int argc, char **argv)
         case OPT_PEER_RPK:
             peer_rpk_file = opt_arg();
             break;
-#endif
         }
     }
 
@@ -1717,7 +1709,6 @@ int s_client_main(int argc, char **argv)
     if (!load_excert(&exc))
         goto end;
 
-#ifndef OPENSSL_NO_RPK
     if (peer_rpk_file != NULL) {
         peer_rpk = load_pubkey(peer_rpk_file, key_format, 0, pass, e, "server RPK file");
         if (peer_rpk == NULL) {
@@ -1732,7 +1723,6 @@ int s_client_main(int argc, char **argv)
             goto end;
         }
     }
-#endif
 
     if (bio_c_out == NULL) {
         if (c_quiet && !c_debug) {
@@ -2027,7 +2017,6 @@ int s_client_main(int argc, char **argv)
     if (enable_pha)
         SSL_set_post_handshake_auth(con, 1);
 
-#ifndef OPENSSL_NO_RPK
     if (enable_client_rpk)
         SSL_set1_client_cert_type(con, cert_type_rpk, sizeof(cert_type_rpk));
     if (enable_server_rpk) {
@@ -2040,7 +2029,6 @@ int s_client_main(int argc, char **argv)
             }
         }
     }
-#endif
 
     if (sess_in != NULL) {
         SSL_SESSION *sess;
@@ -3230,10 +3218,8 @@ int s_client_main(int argc, char **argv)
 #endif
     OPENSSL_free(sname_alloc);
     BIO_ADDR_free(tfo_addr);
-#ifndef OPENSSL_NO_RPK
     EVP_PKEY_free(peer_rpk);
     X509_free(peer_rpk_cert);
-#endif
     OPENSSL_free(connectstr);
     OPENSSL_free(bindstr);
     OPENSSL_free(bindhost);
@@ -3321,7 +3307,6 @@ static void print_stuff(BIO *bio, SSL *s, int full)
             BIO_printf(bio, "no peer certificate available\n");
         }
 
-#ifndef OPENSSL_NO_RPK
         /* Only display RPK information if configured */
         if (SSL_rpk_send_negotiated(s))
             BIO_printf(bio, "Client-to-server raw public key negotiated\n");
@@ -3337,7 +3322,6 @@ static void print_stuff(BIO *bio, SSL *s, int full)
                 BIO_printf(bio, "no peer rpk available\n");
             }
         }
-#endif
 
         print_ca_names(bio, s);
 
