@@ -2022,13 +2022,10 @@ EXT_RETURN tls_construct_ctos_client_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
 {
     sc->ext.client_cert_type_ctos = 0;
 #ifndef OPENSSL_NO_RPK
-    if ((sc->options & SSL_OP_RPK_CLIENT) != 0) {
+    if (sc->client_cert_type != NULL) {
         if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_client_cert_type)
                 || !WPACKET_start_sub_packet_u16(pkt)
-                || !WPACKET_start_sub_packet_u8(pkt)
-                || !WPACKET_put_bytes_u8(pkt, TLSEXT_cert_type_rpk)
-                || !WPACKET_put_bytes_u8(pkt, TLSEXT_cert_type_x509)
-                || !WPACKET_close(pkt)
+                || !WPACKET_sub_memcpy_u8(pkt, sc->client_cert_type, sc->client_cert_type_len)
                 || !WPACKET_close(pkt)) {
             SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
             return EXT_RETURN_FAIL;
@@ -2059,13 +2056,14 @@ int tls_parse_stoc_client_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
         SSLfatal(sc, SSL_AD_UNSUPPORTED_CERTIFICATE, SSL_R_BAD_VALUE);
         return 0;
     }
+    /* TODO: HOW STRICT DO WE WANT TO BE? */
     /* We did not send/ask for this */
     if (!sc->ext.client_cert_type_ctos) {
         SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
         return 0;
     }
     /* We don't have this enabled */
-    if ((sc->options & SSL_OP_RPK_CLIENT) == 0) {
+    if (sc->client_cert_type == NULL) {
         SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_RPK_DISABLED);
         return 0;
     }
@@ -2080,13 +2078,10 @@ EXT_RETURN tls_construct_ctos_server_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
 {
     sc->ext.server_cert_type_ctos = 0;
 #ifndef OPENSSL_NO_RPK
-    if ((sc->options & SSL_OP_RPK_SERVER) != 0) {
+    if (sc->server_cert_type != NULL) {
         if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_server_cert_type)
                 || !WPACKET_start_sub_packet_u16(pkt)
-                || !WPACKET_start_sub_packet_u8(pkt)
-                || !WPACKET_put_bytes_u8(pkt, TLSEXT_cert_type_rpk)
-                || !WPACKET_put_bytes_u8(pkt, TLSEXT_cert_type_x509)
-                || !WPACKET_close(pkt)
+                || !WPACKET_sub_memcpy_u8(pkt, sc->server_cert_type, sc->server_cert_type_len)
                 || !WPACKET_close(pkt)) {
             SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
             return EXT_RETURN_FAIL;
@@ -2117,13 +2112,14 @@ int tls_parse_stoc_server_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
         SSLfatal(sc, SSL_AD_UNSUPPORTED_CERTIFICATE, SSL_R_BAD_VALUE);
         return 0;
     }
+    /* TODO: HOW STRICT DO WE WANT TO BE? */
     /* We did not send/ask for this */
     if (!sc->ext.server_cert_type_ctos) {
         SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
         return 0;
     }
     /* We don't have this enabled */
-    if ((sc->options & SSL_OP_RPK_SERVER) == 0) {
+    if (sc->server_cert_type == NULL) {
         SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_RPK_DISABLED);
         return 0;
     }

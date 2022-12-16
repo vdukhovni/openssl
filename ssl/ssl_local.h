@@ -1233,6 +1233,12 @@ struct ssl_ctx_st {
     /* certificate compression preferences */
     int cert_comp_prefs[TLSEXT_comp_cert_limit];
 #endif
+
+    /* Certificate Type stuff - for RPK vs X.509 */
+    unsigned char *client_cert_type;
+    size_t client_cert_type_len;
+    unsigned char *server_cert_type;
+    size_t server_cert_type_len;
 };
 
 typedef struct cert_pkey_st CERT_PKEY;
@@ -1838,6 +1844,12 @@ struct ssl_connection_st {
     /* certificate compression preferences */
     int cert_comp_prefs[TLSEXT_comp_cert_limit];
 #endif
+
+    /* Certificate Type stuff - for RPK vs X.509 */
+    unsigned char *client_cert_type;
+    size_t client_cert_type_len;
+    unsigned char *server_cert_type;
+    size_t server_cert_type_len;
 };
 
 # define SSL_CONNECTION_FROM_SSL_ONLY_int(ssl, c) \
@@ -2467,6 +2479,30 @@ static ossl_inline int tls12_rpk_and_privkey(const SSL_CONNECTION *sc, int idx)
         && sc->cert->pkeys[idx].x509 == NULL;
 }
 
+static ossl_inline int ssl_has_cert_type(const SSL_CONNECTION *sc, unsigned char ct)
+{
+    size_t i;
+    unsigned char *ptr;
+    size_t len;
+
+    if (sc->server) {
+        ptr = sc->server_cert_type;
+        len = sc->server_cert_type_len;
+    } else {
+        ptr = sc->client_cert_type;
+        len = sc->client_cert_type_len;
+    }
+
+    if (ptr == NULL)
+        return 0;
+
+    for (i = 0; i < len; i++) {
+        if (ptr[i] == ct)
+            return 1;
+    }
+    return 0;
+}
+
 /* Returns true if certificate and private key for 'idx' are present */
 static ossl_inline int ssl_has_cert(const SSL_CONNECTION *s, int idx)
 {
@@ -2474,10 +2510,8 @@ static ossl_inline int ssl_has_cert(const SSL_CONNECTION *s, int idx)
         return 0;
 # ifndef OPENSSL_NO_RPK
     /* If RPK is enabled for this SSL... only require private key */
-    if ((s->server && (s->options & SSL_OP_RPK_SERVER) != 0)
-            || (!s->server && (s->options & SSL_OP_RPK_CLIENT) != 0)) {
+    if (ssl_has_cert_type(s, TLSEXT_cert_type_rpk))
         return s->cert->pkeys[idx].privatekey != NULL;
-    }
 # endif
     return s->cert->pkeys[idx].x509 != NULL
         && s->cert->pkeys[idx].privatekey != NULL;

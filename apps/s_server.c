@@ -102,6 +102,8 @@ static const char *session_id_prefix = NULL;
 
 #ifndef OPENSSL_NO_RPK
 static EVP_PKEY *peer_rpk = NULL;
+static const unsigned char cert_type_rpk[] = { TLSEXT_cert_type_rpk, TLSEXT_cert_type_x509 };
+static int enable_client_rpk = 0;
 #endif
 
 #ifndef OPENSSL_NO_DTLS
@@ -1084,7 +1086,6 @@ int s_server_main(int argc, char *argv[])
     int cert_comp = 0;
 #ifndef OPENSSL_NO_RPK
     int enable_server_rpk = 0;
-    int enable_client_rpk = 0;
     char *peer_rpk_file = NULL;
     X509 *peer_rpk_cert = NULL;
 #endif
@@ -2323,9 +2324,9 @@ int s_server_main(int argc, char *argv[])
     }
 #ifndef OPENSSL_NO_RPK
     if (enable_server_rpk)
-        SSL_CTX_set_options(ctx, SSL_OP_RPK_SERVER);
+        SSL_CTX_set1_server_cert_type(ctx, cert_type_rpk, sizeof(cert_type_rpk));
     if (enable_client_rpk)
-        SSL_CTX_set_options(ctx, SSL_OP_RPK_CLIENT);
+        SSL_CTX_set1_client_cert_type(ctx, cert_type_rpk, sizeof(cert_type_rpk));
 #endif
 
     if (rev)
@@ -3097,7 +3098,7 @@ static void print_connection_info(SSL *con)
         BIO_printf(bio_s_out, "Server-to-client raw public key negotiated\n");
     if (SSL_rpk_receive_negotiated(con))
         BIO_printf(bio_s_out, "Client-to-server raw public key negotiated\n");
-    if ((SSL_get_options(con) & SSL_OP_RPK_CLIENT) != 0) {
+    if (enable_client_rpk) {
         EVP_PKEY *client_rpk = SSL_get0_peer_rpk(con);
 
         if (client_rpk != NULL) {
