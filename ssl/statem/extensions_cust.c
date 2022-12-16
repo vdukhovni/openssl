@@ -534,10 +534,8 @@ int SSL_extension_supported(unsigned int ext_type)
     case TLSEXT_TYPE_psk:
     case TLSEXT_TYPE_post_handshake_auth:
     case TLSEXT_TYPE_compress_certificate:
-#ifndef OPENSSL_NO_RPK
     case TLSEXT_TYPE_client_cert_type:
     case TLSEXT_TYPE_server_cert_type:
-#endif
         return 1;
     default:
         return 0;
