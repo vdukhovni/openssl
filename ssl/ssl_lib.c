@@ -7289,28 +7289,24 @@ int SSL_add1_expected_peer_rpk(SSL *s, EVP_PKEY *pkey)
     return 1;
 }
 
-int SSL_rpk_send_negotiated(const SSL *s)
+int SSL_get_negotiated_client_cert_type(const SSL *s)
 {
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
 
     if (sc == NULL)
         return 0;
 
-    if (sc->server)
-        return sc->ext.server_cert_type == TLSEXT_cert_type_rpk;
-    return sc->ext.client_cert_type == TLSEXT_cert_type_rpk;
+    return sc->ext.client_cert_type;
 }
 
-int SSL_rpk_receive_negotiated(const SSL *s)
+int SSL_get_negotiated_server_cert_type(const SSL *s)
 {
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
 
     if (sc == NULL)
         return 0;
 
-    if (sc->server)
-        return sc->ext.client_cert_type == TLSEXT_cert_type_rpk;
-    return sc->ext.server_cert_type == TLSEXT_cert_type_rpk;
+    return sc->ext.server_cert_type;
 }
 
 static int validate_cert_type(const unsigned char *val, size_t len)
