@@ -403,16 +403,16 @@ static int test_rpk(int idx)
         if (idx_server_server_rpk && idx_client_server_rpk) {
             if (!TEST_ptr(SSL_get0_peer_rpk(clientssl)))
                 goto end;
-            if (!TEST_true(SSL_rpk_send_negotiated(serverssl)))
+            if (!TEST_int_eq(SSL_get_negotiated_server_cert_type(serverssl), TLSEXT_cert_type_rpk))
                 goto end;
-            if (!TEST_true(SSL_rpk_receive_negotiated(clientssl)))
+            if (!TEST_int_eq(SSL_get_negotiated_server_cert_type(clientssl), TLSEXT_cert_type_rpk))
                 goto end;
         } else {
             if (!TEST_ptr(SSL_get0_peer_certificate(clientssl)))
                 goto end;
-            if (!TEST_false(SSL_rpk_send_negotiated(serverssl)))
+            if (!TEST_int_eq(SSL_get_negotiated_server_cert_type(serverssl), TLSEXT_cert_type_x509))
                 goto end;
-            if (!TEST_false(SSL_rpk_receive_negotiated(clientssl)))
+            if (!TEST_int_eq(SSL_get_negotiated_server_cert_type(clientssl), TLSEXT_cert_type_x509))
                 goto end;
         }
     }
@@ -434,17 +434,17 @@ static int test_rpk(int idx)
         if (idx_server_client_rpk && idx_client_client_rpk) {
             if (!TEST_ptr(SSL_get0_peer_rpk(serverssl)))
                 goto end;
-            if (!TEST_true(SSL_rpk_send_negotiated(clientssl)))
+            if (!TEST_int_eq(SSL_get_negotiated_client_cert_type(serverssl), TLSEXT_cert_type_rpk))
                 goto end;
-            if (!TEST_true(SSL_rpk_receive_negotiated(serverssl)))
+            if (!TEST_int_eq(SSL_get_negotiated_client_cert_type(clientssl), TLSEXT_cert_type_rpk))
                 goto end;
         } else {
             /* only if connection is expected to succeed */
             if (expected == 1 && !TEST_ptr(SSL_get0_peer_certificate(serverssl)))
                 goto end;
-            if (!TEST_false(SSL_rpk_send_negotiated(clientssl)))
+            if (!TEST_int_eq(SSL_get_negotiated_client_cert_type(serverssl), TLSEXT_cert_type_x509))
                 goto end;
-            if (!TEST_false(SSL_rpk_receive_negotiated(serverssl)))
+            if (!TEST_int_eq(SSL_get_negotiated_client_cert_type(clientssl), TLSEXT_cert_type_x509))
                 goto end;
         }
     }
@@ -533,17 +533,17 @@ static int test_rpk(int idx)
 
         if (!TEST_ptr(SSL_get0_peer_rpk(clientssl)))
             goto end;
-        if (!TEST_true(SSL_rpk_send_negotiated(serverssl)))
+        if (!TEST_int_eq(SSL_get_negotiated_server_cert_type(serverssl), TLSEXT_cert_type_rpk))
             goto end;
-        if (!TEST_true(SSL_rpk_receive_negotiated(clientssl)))
+        if (!TEST_int_eq(SSL_get_negotiated_server_cert_type(clientssl), TLSEXT_cert_type_rpk))
             goto end;
 
         if (client_auth) {
             if (!TEST_ptr(SSL_get0_peer_rpk(serverssl)))
                 goto end;
-            if (!TEST_true(SSL_rpk_receive_negotiated(serverssl)))
+            if (!TEST_int_eq(SSL_get_negotiated_client_cert_type(serverssl), TLSEXT_cert_type_rpk))
                 goto end;
-            if (!TEST_true(SSL_rpk_send_negotiated(clientssl)))
+            if (!TEST_int_eq(SSL_get_negotiated_client_cert_type(clientssl), TLSEXT_cert_type_rpk))
                 goto end;
         }
     }

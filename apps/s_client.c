@@ -3308,9 +3308,9 @@ static void print_stuff(BIO *bio, SSL *s, int full)
         }
 
         /* Only display RPK information if configured */
-        if (SSL_rpk_send_negotiated(s))
+        if (SSL_get_negotiated_client_cert_type(s) == TLSEXT_cert_type_rpk)
             BIO_printf(bio, "Client-to-server raw public key negotiated\n");
-        if (SSL_rpk_receive_negotiated(s))
+        if (SSL_get_negotiated_server_cert_type(s) == TLSEXT_cert_type_rpk)
             BIO_printf(bio, "Server-to-client raw public key negotiated\n");
         if (enable_server_rpk) {
             EVP_PKEY *peer_rpk = SSL_get0_peer_rpk(s);
