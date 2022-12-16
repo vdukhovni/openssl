@@ -16,7 +16,7 @@ BEGIN {
 use lib srctop_dir('Configurations');
 use lib bldtop_dir('.');
 
-plan skip_all => "RPK is disabled in this OpenSSL build" if disabled("rpk");
+plan skip_all => "RPK is disabled in this OpenSSL build" if disabled("tls1_2") && disabled("tls1_3");
 
 plan tests => 1;
 

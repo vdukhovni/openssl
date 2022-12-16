@@ -1959,7 +1959,6 @@ EXT_RETURN tls_construct_stoc_client_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
      * Note: only supposed to send this if we are going to do a cert request,
      * but TLSv1.3 could do a PHA request if the client supports it
      */
-#ifndef OPENSSL_NO_RPK
     if ((send_certificate_request(sc) || sc->post_handshake_auth == SSL_PHA_EXT_RECEIVED)
             && sc->ext.client_cert_type_ctos
             && sc->client_cert_type != NULL) {
@@ -1972,7 +1971,6 @@ EXT_RETURN tls_construct_stoc_client_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
         }
         return EXT_RETURN_SENT;
     }
-#endif
     /* if we don't send it, reset to TLSEXT_cert_type_x509 */
     sc->ext.client_cert_type_ctos = 0;
     sc->ext.client_cert_type = TLSEXT_cert_type_x509;
@@ -2001,7 +1999,6 @@ int tls_parse_ctos_client_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
                                     unsigned int context,
                                     X509 *x, size_t chainidx)
 {
-#ifndef OPENSSL_NO_RPK
     PACKET supported_cert_types;
     const unsigned char *data;
     size_t len;
@@ -2036,10 +2033,6 @@ int tls_parse_ctos_client_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
     /* Did not receive an acceptable cert type */
     SSLfatal(sc, SSL_AD_UNSUPPORTED_CERTIFICATE, SSL_R_BAD_EXTENSION);
     return 0;
-#else
-    /* Ignore the extension */
-    return 1;
-#endif
 }
 
 EXT_RETURN tls_construct_stoc_server_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
@@ -2050,7 +2043,6 @@ EXT_RETURN tls_construct_stoc_server_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
         sc->ext.server_cert_type_ctos = 0;
         return EXT_RETURN_NOT_SENT;
     }
-#ifndef OPENSSL_NO_RPK
     if (sc->ext.server_cert_type_ctos && sc->server_cert_type != NULL) {
         if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_server_cert_type)
                 || !WPACKET_start_sub_packet_u16(pkt)
@@ -2061,7 +2053,6 @@ EXT_RETURN tls_construct_stoc_server_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
         }
         return EXT_RETURN_SENT;
     }
-#endif
     /* if we don't send it, reset to TLSEXT_cert_type_x509 */
     sc->ext.server_cert_type_ctos = 0;
     sc->ext.server_cert_type = TLSEXT_cert_type_x509;
@@ -2072,7 +2063,6 @@ int tls_parse_ctos_server_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
                                     unsigned int context,
                                     X509 *x, size_t chainidx)
 {
-#ifndef OPENSSL_NO_RPK
     PACKET supported_cert_types;
     const unsigned char *data;
     size_t len;
@@ -2107,8 +2097,4 @@ int tls_parse_ctos_server_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
     /* Did not receive an acceptable cert type */
     SSLfatal(sc, SSL_AD_UNSUPPORTED_CERTIFICATE, SSL_R_BAD_EXTENSION);
     return 0;
-#else
-    /* Ignore the extension */
-    return 1;
-#endif
 }
