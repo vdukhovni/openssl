@@ -884,6 +884,18 @@ SSL *ossl_ssl_connection_new_int(SSL_CTX *ctx, const SSL_METHOD *method)
     if (s->peer_rpks == NULL)
         goto sslerr;
 #endif
+    if (ctx->client_cert_type != NULL) {
+        s->client_cert_type = OPENSSL_memdup(ctx->client_cert_type, ctx->client_cert_type_len);
+        if (s->client_cert_type == NULL)
+            goto sslerr;
+        s->client_cert_type_len = ctx->client_cert_type_len;
+    }
+    if (ctx->server_cert_type != NULL) {
+        s->server_cert_type = OPENSSL_memdup(ctx->server_cert_type, ctx->server_cert_type_len);
+        if (s->server_cert_type == NULL)
+            goto sslerr;
+        s->server_cert_type_len = ctx->server_cert_type_len;
+    }
 
 #ifndef OPENSSL_NO_CT
     if (!SSL_set_ct_validation_callback(ssl, ctx->ct_validation_callback,
@@ -1410,6 +1422,9 @@ void ossl_ssl_connection_free(SSL *ssl)
 
     sk_X509_NAME_pop_free(s->ca_names, X509_NAME_free);
     sk_X509_NAME_pop_free(s->client_ca_names, X509_NAME_free);
+
+    OPENSSL_free(s->client_cert_type);
+    OPENSSL_free(s->server_cert_type);
 
     OSSL_STACK_OF_X509_free(s->verified_chain);
 
@@ -4063,6 +4078,9 @@ void SSL_CTX_free(SSL_CTX *a)
     OPENSSL_free(a->group_list);
 
     OPENSSL_free(a->sigalg_lookup_cache);
+
+    OPENSSL_free(a->client_cert_type);
+    OPENSSL_free(a->server_cert_type);
 
     CRYPTO_THREAD_lock_free(a->lock);
 #ifdef TSAN_REQUIRES_LOCKING
@@ -7299,4 +7317,128 @@ int SSL_rpk_receive_negotiated(const SSL *s)
     if (sc->server)
         return sc->ext.client_cert_type == TLSEXT_cert_type_rpk;
     return sc->ext.server_cert_type == TLSEXT_cert_type_rpk;
+}
+
+static int validate_cert_type(const unsigned char *val, size_t len)
+{
+    size_t i;
+    int saw_rpk = 0;
+    int saw_x509 = 0;
+
+    if (val == NULL && len == 0)
+        return 1;
+
+    if (val == NULL || len == 0)
+        return 0;
+
+    for (i = 0; i < len; i++) {
+        switch (val[i]) {
+        case TLSEXT_cert_type_rpk:
+            if (saw_rpk)
+                return 0;
+            saw_rpk = 1;
+            break;
+        case TLSEXT_cert_type_x509:
+            if (saw_x509)
+                return 0;
+            saw_x509 = 1;
+            break;
+        case TLSEXT_cert_type_pgp:
+        case TLSEXT_cert_type_1609dot2:
+        default:
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int set_cert_type(unsigned char **cert_type,
+                         size_t *cert_type_len,
+                         const unsigned char *val,
+                         size_t len)
+{
+    unsigned char *tmp = NULL;
+
+    if (!validate_cert_type(val, len))
+        return 0;
+
+    if (val != NULL && (tmp = OPENSSL_memdup(val, len)) == NULL)
+        return 0;
+
+    OPENSSL_free(*cert_type);
+    *cert_type = tmp;
+    *cert_type_len = len;
+    return 1;
+}
+
+int SSL_set1_client_cert_type(SSL *s, const unsigned char *val, size_t len)
+{
+    SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
+
+    return set_cert_type(&sc->client_cert_type, &sc->client_cert_type_len,
+                         val, len);
+}
+
+int SSL_set1_server_cert_type(SSL *s, const unsigned char *val, size_t len)
+{
+    SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
+
+    return set_cert_type(&sc->server_cert_type, &sc->server_cert_type_len,
+                         val, len);
+}
+
+int SSL_CTX_set1_client_cert_type(SSL_CTX *ctx, const unsigned char *val, size_t len)
+{
+    return set_cert_type(&ctx->client_cert_type, &ctx->client_cert_type_len,
+                         val, len);
+}
+
+int SSL_CTX_set1_server_cert_type(SSL_CTX *ctx, const unsigned char *val, size_t len)
+{
+    return set_cert_type(&ctx->server_cert_type, &ctx->server_cert_type_len,
+                         val, len);
+}
+
+int SSL_get0_client_cert_type(SSL *s, unsigned char **t, size_t *len)
+{
+    SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
+
+    if (t == NULL || len == NULL)
+        return 0;
+
+    *t = sc->client_cert_type;
+    *len = sc->client_cert_type_len;
+    return 1;
+}
+
+int SSL_get0_server_cert_type(SSL *s, unsigned char **t, size_t *len)
+{
+    SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
+
+    if (t == NULL || len == NULL)
+        return 0;
+
+    *t = sc->server_cert_type;
+    *len = sc->server_cert_type_len;
+    return 1;
+}
+
+int SSL_CTX_get0_client_cert_type(SSL_CTX *ctx, unsigned char **t, size_t *len)
+{
+    if (t == NULL || len == NULL)
+        return 0;
+
+    *t = ctx->client_cert_type;
+    *len = ctx->client_cert_type_len;
+    return 1;
+}
+
+int SSL_CTX_get0_server_cert_type(SSL_CTX *ctx, unsigned char **t, size_t *len)
+{
+    if (t == NULL || len == NULL)
+        return 0;
+
+    *t = ctx->server_cert_type;
+    *len = ctx->server_cert_type_len;
+    return 1;
 }
