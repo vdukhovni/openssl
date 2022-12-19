@@ -2391,7 +2391,6 @@ static ossl_inline int tls12_rpk_and_privkey(const SSL_CONNECTION *sc, int idx)
 
 static ossl_inline int ssl_has_cert_type(const SSL_CONNECTION *sc, unsigned char ct)
 {
-    size_t i;
     unsigned char *ptr;
     size_t len;
 
@@ -2406,11 +2405,7 @@ static ossl_inline int ssl_has_cert_type(const SSL_CONNECTION *sc, unsigned char
     if (ptr == NULL)
         return 0;
 
-    for (i = 0; i < len; i++) {
-        if (ptr[i] == ct)
-            return 1;
-    }
-    return 0;
+    return memchr(ptr, ct, len) != NULL;
 }
 
 /* Returns true if certificate and private key for 'idx' are present */
