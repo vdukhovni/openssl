@@ -2018,9 +2018,15 @@ int s_client_main(int argc, char **argv)
         SSL_set_post_handshake_auth(con, 1);
 
     if (enable_client_rpk)
-        SSL_set1_client_cert_type(con, cert_type_rpk, sizeof(cert_type_rpk));
+        if (!SSL_set1_client_cert_type(con, cert_type_rpk, sizeof(cert_type_rpk))) {
+            BIO_printf(bio_err, "Error setting client certificate types\n");
+            goto end;
+        }
     if (enable_server_rpk) {
-        SSL_set1_server_cert_type(con, cert_type_rpk, sizeof(cert_type_rpk));
+        if (!SSL_set1_server_cert_type(con, cert_type_rpk, sizeof(cert_type_rpk))) {
+            BIO_printf(bio_err, "Error setting server certificate types\n");
+            goto end;
+        }
         if (peer_rpk != NULL) {
             if (!SSL_add1_expected_peer_rpk(con, peer_rpk)) {
                 BIO_printf(bio_err, "Error setting expected server RPK\n");

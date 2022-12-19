@@ -3,7 +3,7 @@
 =head1 NAME
 
 SSL_get_negotiated_client_cert_type,
-SSL_get_negotiated_server_cert_type
+SSL_get_negotiated_server_cert_type,
 SSL_get0_peer_rpk,
 SSL_SESSION_get0_peer_rpk,
 SSL_add1_expected_peer_rpk - raw public key (RFC7250) support
