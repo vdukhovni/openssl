@@ -2310,9 +2310,15 @@ int s_server_main(int argc, char *argv[])
             BIO_printf(bio_s_out, "Error compressing certs on ctx2\n");
     }
     if (enable_server_rpk)
-        SSL_CTX_set1_server_cert_type(ctx, cert_type_rpk, sizeof(cert_type_rpk));
+        if (!SSL_CTX_set1_server_cert_type(ctx, cert_type_rpk, sizeof(cert_type_rpk))) {
+            BIO_printf(bio_s_out, "Error setting server certificate types\n");
+            goto end;
+        }
     if (enable_client_rpk)
-        SSL_CTX_set1_client_cert_type(ctx, cert_type_rpk, sizeof(cert_type_rpk));
+        if (!SSL_CTX_set1_client_cert_type(ctx, cert_type_rpk, sizeof(cert_type_rpk))) {
+            BIO_printf(bio_s_out, "Error setting server certificate types\n");
+            goto end;
+        }
 
     if (rev)
         server_cb = rev_body;

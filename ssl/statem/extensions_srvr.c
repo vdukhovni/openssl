@@ -1969,18 +1969,16 @@ EXT_RETURN tls_construct_stoc_client_cert_type(SSL_CONNECTION *sc, WPACKET *pkt,
 }
 
 /* One of |pref|, |other| is configured and the values are sanitized */
-int reconcile_cert_type(const unsigned char *pref, size_t pref_len,
-                        const unsigned char *other, size_t other_len,
-                        uint8_t *chosen_cert_type)
+static int reconcile_cert_type(const unsigned char *pref, size_t pref_len,
+                               const unsigned char *other, size_t other_len,
+                               uint8_t *chosen_cert_type)
 {
-    size_t i, j;
+    size_t i;
 
     for (i = 0; i < pref_len; i++) {
-        for (j = 0; j < other_len; j++) {
-            if (pref[i] == other[j]) {
-                *chosen_cert_type = pref[i];
-                return 1;
-            }
+        if (memchr(other, pref[i], other_len) != NULL) {
+            *chosen_cert_type = pref[i];
+            return 1;
         }
     }
     return 0;

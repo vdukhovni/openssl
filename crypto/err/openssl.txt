@@ -1496,7 +1496,7 @@ SSL_R_REQUEST_SENT:286:request sent
 SSL_R_REQUIRED_CIPHER_MISSING:215:required cipher missing
 SSL_R_REQUIRED_COMPRESSION_ALGORITHM_MISSING:342:\
 	required compression algorithm missing
-SSL_R_RPK_DISABLED:333:rpk disabled
+SSL_R_RPK_DISABLED:346:rpk disabled
 SSL_R_SCSV_RECEIVED_WHEN_RENEGOTIATING:345:scsv received when renegotiating
 SSL_R_SCT_VERIFICATION_FAILED:208:sct verification failed
 SSL_R_SEQUENCE_CTR_WRAPPED:327:sequence ctr wrapped
