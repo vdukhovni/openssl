@@ -1047,19 +1047,17 @@ EVP_PKEY* tls_get_peer_pkey(const SSL_CONNECTION *sc)
     return NULL;
 }
 
-int tls_process_rpk(SSL_CONNECTION *sc, PACKET *pkt, EVP_PKEY **match)
+int tls_process_rpk(SSL_CONNECTION *sc, PACKET *pkt)
 {
     int ret = 0;
     EVP_PKEY *pkey = NULL;
     RAW_EXTENSION *rawexts = NULL;
     PACKET extensions;
-    int i;
     PACKET context;
     unsigned long cert_list_len, spki_len;
     const unsigned char *spki, *spkistart;
     SSL_CTX *sctx = SSL_CONNECTION_GET_CTX(sc);
 
-    *match = NULL;
     if (SSL_CONNECTION_IS_TLS13(sc)) {
         if (!PACKET_get_length_prefixed_1(pkt, &context)) {
             SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_INVALID_CONTEXT);
@@ -1110,25 +1108,6 @@ int tls_process_rpk(SSL_CONNECTION *sc, PACKET *pkt, EVP_PKEY **match)
                  SSL_R_UNABLE_TO_FIND_PUBLIC_KEY_PARAMETERS);
         goto err;
     }
-    /* Verify the received key is a configured one. */
-    for (i = 0; i < sk_EVP_PKEY_num(sc->peer_rpks); i++) {
-        EVP_PKEY *conf_pkey = sk_EVP_PKEY_value(sc->peer_rpks, i);
-
-        /*
-         * EVP_PKEY_eq() will throw an error for different types,
-         * so, check that first, and then explicitly check for 1
-         */
-        if (EVP_PKEY_get_id(pkey) == EVP_PKEY_get_id(conf_pkey)
-                && EVP_PKEY_eq(conf_pkey, pkey) == 1) {
-            *match = conf_pkey;
-            break;
-        }
-    }
-    if (*match == NULL) {
-        SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER,
-                 SSL_R_INVALID_CERTIFICATE_OR_ALG);
-        goto err;
-    }
 
     /* Process the Extensions block */
     if (SSL_CONNECTION_IS_TLS13(sc)) {
@@ -1154,6 +1133,9 @@ int tls_process_rpk(SSL_CONNECTION *sc, PACKET *pkt, EVP_PKEY **match)
         }
     }
     ret = 1;
+    EVP_PKEY_free(sc->peer_rpk);
+    sc->peer_rpk = pkey;
+    pkey = NULL;
 
  err:
     OPENSSL_free(rawexts);

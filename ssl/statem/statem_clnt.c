@@ -1861,27 +1861,59 @@ static MSG_PROCESS_RETURN tls_process_as_hello_retry_request(SSL_CONNECTION *s,
     return MSG_PROCESS_ERROR;
 }
 
-/*
- * Combines elements of both:
- * - tls_process_server_certificate
- * - tls_post_process_server_certificate
- */
 MSG_PROCESS_RETURN tls_process_server_rpk(SSL_CONNECTION *sc, PACKET *pkt)
 {
-    MSG_PROCESS_RETURN ret = MSG_PROCESS_ERROR;
-    size_t certidx;
-    const SSL_CERT_LOOKUP *clu;
-    EVP_PKEY *peer_rpk;
-
-    if (!tls_process_rpk(sc, pkt, &peer_rpk)) {
+    if (!tls_process_rpk(sc, pkt)) {
         /* SSLfatal() already called */
-        goto err;
+        return MSG_PROCESS_ERROR;
     }
 
-    if ((clu = ssl_cert_lookup_by_pkey(peer_rpk, &certidx)) == NULL) {
-        SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER, SSL_R_UNKNOWN_CERTIFICATE_TYPE);
-        goto err;
+    return MSG_PROCESS_CONTINUE_PROCESSING;
+}
+
+
+
+WORK_STATE tls_post_process_server_rpk(SSL_CONNECTION *sc,
+                                       WORK_STATE wst)
+{
+    size_t certidx;
+    size_t i;
+    const SSL_CERT_LOOKUP *clu;
+    int found = 0;
+
+    if (sc->peer_rpk == NULL) {
+        SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER,
+                 SSL_R_INVALID_RAW_PUBLIC_KEY);
+        return WORK_ERROR;
     }
+    /* TODO: Remove this for X509_verify_rpk? */
+    /* Verify the received key is a configured one. */
+    for (i = 0; i < sk_EVP_PKEY_num(sc->peer_rpks); i++) {
+        EVP_PKEY *conf_pkey = sk_EVP_PKEY_value(sc->peer_rpks, i);
+
+        /*
+         * EVP_PKEY_eq() will throw an error for different types,
+         * so, check that first, and then explicitly check for 1
+         */
+        if (EVP_PKEY_get_id(sc->peer_rpk) == EVP_PKEY_get_id(conf_pkey)
+                && EVP_PKEY_eq(conf_pkey, sc->peer_rpk) == 1) {
+            found = 1;
+            break;
+        }
+    }
+    if (!found) {
+        /* TODO: POSSIBLE ERROR */
+        SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER,
+                 SSL_R_INVALID_CERTIFICATE_OR_RPK);
+        return WORK_ERROR;
+    }
+
+
+    if ((clu = ssl_cert_lookup_by_pkey(sc->peer_rpk, &certidx)) == NULL) {
+        SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER, SSL_R_UNKNOWN_CERTIFICATE_TYPE);
+        return WORK_ERROR;
+    }
+
     /*
      * Check certificate type is consistent with ciphersuite. For TLS 1.3
      * skip check since TLS 1.3 ciphersuites can be used with any certificate
@@ -1889,8 +1921,8 @@ MSG_PROCESS_RETURN tls_process_server_rpk(SSL_CONNECTION *sc, PACKET *pkt)
      */
     if (!SSL_CONNECTION_IS_TLS13(sc)) {
         if ((clu->amask & sc->s3.tmp.new_cipher->algorithm_auth) == 0) {
-            SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER, SSL_R_WRONG_CERTIFICATE_TYPE);
-            goto err;
+            SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER, SSL_R_WRONG_RPK_TYPE);
+            return WORK_ERROR;
         }
     }
 
@@ -1900,13 +1932,12 @@ MSG_PROCESS_RETURN tls_process_server_rpk(SSL_CONNECTION *sc, PACKET *pkt)
 
     sk_X509_pop_free(sc->session->peer_chain, X509_free);
     sc->session->peer_chain = NULL;
-
-    if (!EVP_PKEY_up_ref(peer_rpk)) {
+    if (!EVP_PKEY_up_ref(sc->peer_rpk)) {
         SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        goto err;
+        return WORK_ERROR;
     }
     EVP_PKEY_free(sc->session->peer_rpk);
-    sc->session->peer_rpk = peer_rpk;
+    sc->session->peer_rpk = sc->peer_rpk;
 
     /* Save the current hash state for when we receive the CertificateVerify */
     if (SSL_CONNECTION_IS_TLS13(sc)
@@ -1914,13 +1945,10 @@ MSG_PROCESS_RETURN tls_process_server_rpk(SSL_CONNECTION *sc, PACKET *pkt)
                                    sizeof(sc->cert_verify_hash),
                                    &sc->cert_verify_hash_len)) {
         /* SSLfatal() already called */
-        goto err;
+        return WORK_ERROR;
     }
-    /* Don't call tls_post_process_server_cert() */
-    ret = MSG_PROCESS_CONTINUE_READING;
 
- err:
-    return ret;
+    return WORK_FINISHED_CONTINUE;
 }
 
 /* prepare server cert verification by setting s->session->peer_chain from pkt */
@@ -1934,7 +1962,6 @@ MSG_PROCESS_RETURN tls_process_server_certificate(SSL_CONNECTION *s,
     unsigned int context = 0;
     SSL_CTX *sctx = SSL_CONNECTION_GET_CTX(s);
 
-    /* Note that RPK skips tls_post_process_server_certificate() */
     if (s->ext.server_cert_type == TLSEXT_cert_type_rpk)
         return tls_process_server_rpk(s, pkt);
     if (s->ext.server_cert_type != TLSEXT_cert_type_x509) {
@@ -2030,6 +2057,8 @@ WORK_STATE tls_post_process_server_certificate(SSL_CONNECTION *s,
     size_t certidx;
     int i;
 
+    if (s->ext.server_cert_type == TLSEXT_cert_type_rpk)
+        return tls_post_process_server_rpk(s, wst);
     if (s->rwstate == SSL_RETRY_VERIFY)
         s->rwstate = SSL_NOTHING;
     i = ssl_verify_cert_chain(s, s->session->peer_chain);
@@ -2655,7 +2684,7 @@ MSG_PROCESS_RETURN tls_process_new_session_ticket(SSL_CONNECTION *s,
             && (!PACKET_get_net_4(pkt, &age_add)
                 || !PACKET_get_length_prefixed_1(pkt, &nonce)))
         || !PACKET_get_net_2(pkt, &ticklen)
-        || (SSL_CONNECTION_IS_TLS13(s) ? (ticklen == 0 
+        || (SSL_CONNECTION_IS_TLS13(s) ? (ticklen == 0
                                           || PACKET_remaining(pkt) < ticklen)
                                        : PACKET_remaining(pkt) != ticklen)) {
         SSLfatal(s, SSL_AD_DECODE_ERROR, SSL_R_LENGTH_MISMATCH);

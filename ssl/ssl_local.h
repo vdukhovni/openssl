@@ -1576,6 +1576,7 @@ struct ssl_connection_st {
     long verify_result;
     /* The configured raw public keys we will accept from the peer */
     STACK_OF(EVP_PKEY) *peer_rpks;
+    EVP_PKEY *peer_rpk;
     /*
      * What we put in certificate_authorities extension for TLS 1.3
      * (ClientHello and CertificateRequest) or just client cert requests for

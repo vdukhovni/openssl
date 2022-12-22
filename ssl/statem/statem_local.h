@@ -176,7 +176,7 @@ __owur MSG_PROCESS_RETURN tls_process_client_rpk(SSL_CONNECTION *sc,
                                                  PACKET *pkt);
 __owur unsigned long tls_output_rpk(SSL_CONNECTION *sc, WPACKET *pkt,
                                     CERT_PKEY *cpk);
-__owur int tls_process_rpk(SSL_CONNECTION *s, PACKET *pkt, EVP_PKEY **match);
+__owur int tls_process_rpk(SSL_CONNECTION *s, PACKET *pkt);
 __owur MSG_PROCESS_RETURN tls_process_server_certificate(SSL_CONNECTION *s,
                                                          PACKET *pkt);
 __owur WORK_STATE tls_post_process_server_certificate(SSL_CONNECTION *s,
