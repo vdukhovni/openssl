@@ -1574,8 +1574,6 @@ struct ssl_connection_st {
     /* Verified chain of peer */
     STACK_OF(X509) *verified_chain;
     long verify_result;
-    /* The configured raw public keys we will accept from the peer */
-    STACK_OF(EVP_PKEY) *peer_rpks;
     EVP_PKEY *peer_rpk;
     /*
      * What we put in certificate_authorities extension for TLS 1.3

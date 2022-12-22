@@ -2028,11 +2028,7 @@ int s_client_main(int argc, char **argv)
             goto end;
         }
         if (peer_rpk != NULL) {
-            if (!SSL_add1_expected_peer_rpk(con, peer_rpk)) {
-                BIO_printf(bio_err, "Error setting expected server RPK\n");
-                ERR_print_errors(bio_err);
-                goto end;
-            }
+            /* TODO: SSL_add1_expected_peer_rpk(con, peer_rpk) */;
         }
     }
 
