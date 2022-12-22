@@ -879,9 +879,6 @@ SSL *ossl_ssl_connection_new_int(SSL_CTX *ctx, const SSL_METHOD *method)
 #ifndef OPENSSL_NO_COMP_ALG
     memcpy(s->cert_comp_prefs, ctx->cert_comp_prefs, sizeof(s->cert_comp_prefs));
 #endif
-    s->peer_rpks = sk_EVP_PKEY_new_null();
-    if (s->peer_rpks == NULL)
-        goto sslerr;
     if (ctx->client_cert_type != NULL) {
         s->client_cert_type = OPENSSL_memdup(ctx->client_cert_type, ctx->client_cert_type_len);
         if (s->client_cert_type == NULL)
@@ -1398,7 +1395,6 @@ void ossl_ssl_connection_free(SSL *ssl)
     OPENSSL_free(s->ext.peer_ecpointformats);
     OPENSSL_free(s->ext.supportedgroups);
     OPENSSL_free(s->ext.peer_supportedgroups);
-    sk_EVP_PKEY_pop_free(s->peer_rpks, EVP_PKEY_free);
     EVP_PKEY_free(s->peer_rpk);
     sk_X509_EXTENSION_pop_free(s->ext.ocsp.exts, X509_EXTENSION_free);
 #ifndef OPENSSL_NO_OCSP
@@ -7270,24 +7266,9 @@ EVP_PKEY *SSL_get0_peer_rpk(const SSL *s)
 {
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
 
-    if (sc == NULL || sc->session == NULL)
+    if (sc == NULL)
         return NULL;
-    return sc->session->peer_rpk;
-}
-
-int SSL_add1_expected_peer_rpk(SSL *s, EVP_PKEY *pkey)
-{
-    SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
-
-    if (sc == NULL || pkey == NULL)
-        return 0;
-    if (EVP_PKEY_up_ref(pkey) < 0)
-        return 0;
-    if (!sk_EVP_PKEY_push(sc->peer_rpks, pkey)) {
-        EVP_PKEY_free(pkey);
-        return 0;
-    }
-    return 1;
+    return sc->peer_rpk;
 }
 
 int SSL_get_negotiated_client_cert_type(const SSL *s)

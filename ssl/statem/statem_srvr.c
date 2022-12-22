@@ -3528,8 +3528,6 @@ WORK_STATE tls_post_process_client_key_exchange(SSL_CONNECTION *s,
 MSG_PROCESS_RETURN tls_process_client_rpk(SSL_CONNECTION *sc, PACKET *pkt)
 {
     MSG_PROCESS_RETURN ret = MSG_PROCESS_ERROR;
-    size_t i;
-    int found = 0;
     SSL_SESSION *new_sess = NULL;
 
     if (!tls_process_rpk(sc, pkt)) {
@@ -3537,27 +3535,7 @@ MSG_PROCESS_RETURN tls_process_client_rpk(SSL_CONNECTION *sc, PACKET *pkt)
         goto err;
     }
 
-    /* TODO: Remove this for X509_verify_rpk? */
-    /* Verify the received key is a configured one. */
-    for (i = 0; i < sk_EVP_PKEY_num(sc->peer_rpks); i++) {
-        EVP_PKEY *conf_pkey = sk_EVP_PKEY_value(sc->peer_rpks, i);
-
-        /*
-         * EVP_PKEY_eq() will throw an error for different types,
-         * so, check that first, and then explicitly check for 1
-         */
-        if (EVP_PKEY_get_id(sc->peer_rpk) == EVP_PKEY_get_id(conf_pkey)
-                && EVP_PKEY_eq(conf_pkey, sc->peer_rpk) == 1) {
-            found = 1;
-            break;
-        }
-    }
-    if (!found) {
-        /* TODO: POSSIBLE ERROR */
-        SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER,
-                 SSL_R_INVALID_CERTIFICATE_OR_RPK);
-        goto err;
-    }
+    /* TODO: Add X509_verify_rpk? */
 
     /*
      * Sessions must be immutable once they go into the session cache. Otherwise
