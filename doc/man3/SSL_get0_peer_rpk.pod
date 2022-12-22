@@ -5,8 +5,7 @@
 SSL_get_negotiated_client_cert_type,
 SSL_get_negotiated_server_cert_type,
 SSL_get0_peer_rpk,
-SSL_SESSION_get0_peer_rpk,
-SSL_add1_expected_peer_rpk - raw public key (RFC7250) support
+SSL_SESSION_get0_peer_rpk - raw public key (RFC7250) support
 
 =head1 SYNOPSIS
 
@@ -16,7 +15,6 @@ SSL_add1_expected_peer_rpk - raw public key (RFC7250) support
  int SSL_get_negotiated_server_cert_type(const SSL *s);
  EVP_PKEY *SSL_get0_peer_rpk(const SSL *s);
  EVP_PKEY *SSL_SESSION_get0_peer_rpk(const SSL_SESSION *ss);
- int SSL_add1_expected_peer_rpk(SSL *s, EVP_PKEY *pkey);
 
 =head1 DESCRIPTION
 
@@ -31,11 +29,6 @@ SSL_get0_peer_rpk() returns the peer's raw public key from SSL B<s>.
 SSL_SESSION_get0_peer_rpk() returns the peer's raw public key from
 SSL_SESSION B<ss> in the case of resumption.
 
-SSL_add1_expected_peer_rpk() configures the given B<pkey>
-as a public key that the peer is expected to present after negotiating
-raw public keys (RFC7250). The reference count on the provided B<pkey> is
-incremented when added to the SSL B<s>.
-
 =head1 NOTES
 
 Raw public keys are used in place of certificates when the option is
@@ -46,11 +39,6 @@ types of keys along with signature-algorithm negotiation.
 
 When raw public keys are used, the certificate verify callback is not called.
 Raw public keys have no subject, issuer, validity dates nor digital signature.
-The peer's raw public key must be added via SSL_add1_expected_peer_rpk()
-for the handshake to succeed. Multiple public keys may be added to the SSL B<s>.
-
-The SSL_SESSION_get0_peer_rpk() and SSL_get0_peer_rpk() functions can be
-used to retrieve a key that is then used in SSL_add1_expected_peer_rpk().
 
 The raw public key is normally taken from the certificate assigned to the
 connection (e.g. via SSL_use_certificate()), but if a certificate is not
@@ -72,8 +60,6 @@ return the following values:
 =item TLSEXT_cert_type_rpk
 
 =back
-
-SSL_add1_expected_peer_rpk() returns 1 on success and 0 on failure.
 
 =head1 SEE ALSO
 

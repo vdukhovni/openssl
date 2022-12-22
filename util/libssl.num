@@ -543,7 +543,6 @@ SSL_net_read_desired                    ?	3_2_0	EXIST::FUNCTION:
 SSL_net_write_desired                   ?	3_2_0	EXIST::FUNCTION:
 SSL_shutdown_ex                         ?	3_2_0	EXIST::FUNCTION:
 SSL_stream_conclude                     ?	3_2_0	EXIST::FUNCTION:
-SSL_add1_expected_peer_rpk              ?	3_2_0	EXIST::FUNCTION:
 SSL_get0_peer_rpk                       ?	3_2_0	EXIST::FUNCTION:
 SSL_SESSION_get0_peer_rpk               ?	3_2_0	EXIST::FUNCTION:
 SSL_set1_client_cert_type               ?	3_2_0	EXIST::FUNCTION:

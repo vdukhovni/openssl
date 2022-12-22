@@ -2578,10 +2578,8 @@ static int sv_body(int s, int stype, int prot, unsigned char *context)
         SSL_set_tlsext_debug_arg(con, bio_s_out);
     }
 
-    if (peer_rpk != NULL && !SSL_add1_expected_peer_rpk(con, peer_rpk)) {
-        BIO_printf(bio_err, "Error setting expected client RPK\n");
-        ERR_print_errors(bio_err);
-        goto err;
+    if (peer_rpk != NULL) {
+        /* TODO: SSL_add_1_expected_peer_rpk(con, peer_rpk) */;
     }
 
     if (early_data) {
@@ -3239,10 +3237,8 @@ static int www_body(int s, int stype, int prot, unsigned char *context)
     SSL_set_bio(con, sbio, sbio);
     SSL_set_accept_state(con);
 
-    if (peer_rpk != NULL && !SSL_add1_expected_peer_rpk(con, peer_rpk)) {
-        BIO_printf(bio_err, "Error setting expected client RPK\n");
-        ERR_print_errors(bio_err);
-        goto err;
+    if (peer_rpk != NULL) {
+        /* TODO: SSL_add_1_expected_peer_rpk(con, peer_rpk) */;
     }
 
     /* No need to free |con| after this. Done by BIO_free(ssl_bio) */
@@ -3653,10 +3649,8 @@ static int rev_body(int s, int stype, int prot, unsigned char *context)
         goto err;
     }
 
-    if (peer_rpk != NULL && !SSL_add1_expected_peer_rpk(con, peer_rpk)) {
-        BIO_printf(bio_err, "Error setting expected client RPK\n");
-        ERR_print_errors(bio_err);
-        goto err;
+    if (peer_rpk != NULL) {
+        /* TODO: SSL_add_1_expected_peer_rpk(con, peer_rpk) */;
     }
 
     sbio = BIO_new_socket(s, BIO_NOCLOSE);

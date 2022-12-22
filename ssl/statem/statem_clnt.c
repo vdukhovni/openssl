@@ -1877,37 +1877,15 @@ WORK_STATE tls_post_process_server_rpk(SSL_CONNECTION *sc,
                                        WORK_STATE wst)
 {
     size_t certidx;
-    size_t i;
     const SSL_CERT_LOOKUP *clu;
-    int found = 0;
 
     if (sc->peer_rpk == NULL) {
         SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER,
                  SSL_R_INVALID_RAW_PUBLIC_KEY);
         return WORK_ERROR;
     }
-    /* TODO: Remove this for X509_verify_rpk? */
-    /* Verify the received key is a configured one. */
-    for (i = 0; i < sk_EVP_PKEY_num(sc->peer_rpks); i++) {
-        EVP_PKEY *conf_pkey = sk_EVP_PKEY_value(sc->peer_rpks, i);
 
-        /*
-         * EVP_PKEY_eq() will throw an error for different types,
-         * so, check that first, and then explicitly check for 1
-         */
-        if (EVP_PKEY_get_id(sc->peer_rpk) == EVP_PKEY_get_id(conf_pkey)
-                && EVP_PKEY_eq(conf_pkey, sc->peer_rpk) == 1) {
-            found = 1;
-            break;
-        }
-    }
-    if (!found) {
-        /* TODO: POSSIBLE ERROR */
-        SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER,
-                 SSL_R_INVALID_CERTIFICATE_OR_RPK);
-        return WORK_ERROR;
-    }
-
+    /* TODO: Add X509_verify_rpk? */
 
     if ((clu = ssl_cert_lookup_by_pkey(sc->peer_rpk, &certidx)) == NULL) {
         SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER, SSL_R_UNKNOWN_CERTIFICATE_TYPE);

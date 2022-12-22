@@ -2588,7 +2588,6 @@ size_t SSL_get1_compressed_cert(SSL *ssl, int alg, unsigned char **data, size_t 
 
 __owur EVP_PKEY *SSL_get0_peer_rpk(const SSL *s);
 __owur EVP_PKEY *SSL_SESSION_get0_peer_rpk(SSL_SESSION *s);
-__owur int SSL_add1_expected_peer_rpk(SSL *s, EVP_PKEY *pkey);
 __owur int SSL_get_negotiated_client_cert_type(const SSL *s);
 __owur int SSL_get_negotiated_server_cert_type(const SSL *s);
 
