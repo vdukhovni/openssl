@@ -43,7 +43,9 @@
 
 static int build_chain(X509_STORE_CTX *ctx);
 static int verify_chain(X509_STORE_CTX *ctx);
+static int verify_rpk(X509_STORE_CTX *ctx);
 static int dane_verify(X509_STORE_CTX *ctx);
+static int dane_verify_rpk(X509_STORE_CTX *ctx);
 static int null_callback(int ok, X509_STORE_CTX *e);
 static int check_issued(X509_STORE_CTX *ctx, X509 *x, X509 *issuer);
 static X509 *find_issuer(X509_STORE_CTX *ctx, STACK_OF(X509) *sk, X509 *x);
@@ -56,7 +58,8 @@ static int check_cert(X509_STORE_CTX *ctx);
 static int check_policy(X509_STORE_CTX *ctx);
 static int get_issuer_sk(X509 **issuer, X509_STORE_CTX *ctx, X509 *x);
 static int check_dane_issuer(X509_STORE_CTX *ctx, int depth);
-static int check_key_level(X509_STORE_CTX *ctx, X509 *cert);
+static int check_cert_key_level(X509_STORE_CTX *ctx, X509 *cert);
+static int check_key_level(X509_STORE_CTX *ctx, EVP_PKEY *pkey);
 static int check_sig_level(X509_STORE_CTX *ctx, X509 *cert);
 static int check_curve(X509 *cert);
 
@@ -197,7 +200,7 @@ static int check_auth_level(X509_STORE_CTX *ctx)
          * We've already checked the security of the leaf key, so here we only
          * check the security of issuer keys.
          */
-        CB_FAIL_IF(i > 0 && !check_key_level(ctx, cert),
+        CB_FAIL_IF(i > 0 && !check_cert_key_level(ctx, cert),
                    ctx, cert, i, X509_V_ERR_CA_KEY_TOO_SMALL);
         /*
          * We also check the signature algorithm security of all certificates
@@ -208,6 +211,19 @@ static int check_auth_level(X509_STORE_CTX *ctx)
     }
     return 1;
 }
+
+/*-
+ * Returns -1 on internal error.
+ * Sadly, returns 0 also on internal error in ctx->verify_cb().
+ */
+static int verify_rpk(X509_STORE_CTX *ctx)
+{
+    /* Not much to verify on a RPK */
+    if (ctx->verify != NULL)
+        return ctx->verify(ctx);
+    return 1;
+}
+
 
 /*-
  * Returns -1 on internal error.
@@ -258,10 +274,50 @@ int X509_STORE_CTX_verify(X509_STORE_CTX *ctx)
         ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
         return -1;
     }
+    if (ctx->rpk != NULL)
+        return X509_verify_rpk(ctx);
     if (ctx->cert == NULL && sk_X509_num(ctx->untrusted) >= 1)
         ctx->cert = sk_X509_value(ctx->untrusted, 0);
     return X509_verify_cert(ctx);
 }
+
+
+/*-
+ * Returns -1 on internal error.
+ * Sadly, returns 0 also on internal error in ctx->verify_cb().
+ */
+int X509_verify_rpk(X509_STORE_CTX *ctx)
+{
+    int ret;
+
+    if (ctx == NULL) {
+        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
+        return -1;
+    }
+    if (ctx->rpk == NULL) {
+        ERR_raise(ERR_LIB_X509, X509_R_NO_RPK_SET_FOR_US_TO_VERIFY);
+        ctx->error = X509_V_ERR_INVALID_CALL;
+        return -1;
+    }
+
+    /* If the peer's public key is too weak, we can stop early. */
+    if (!check_key_level(ctx, ctx->rpk)
+        && verify_cb_cert(ctx, NULL, 0, X509_V_ERR_EE_KEY_TOO_SMALL))
+        return 0;
+
+    /* Figure out what to do here */
+    ret = DANETLS_ENABLED(ctx->dane) ? dane_verify_rpk(ctx) : verify_rpk(ctx);
+
+    /*
+     * Safety-net.  If we are returning an error, we must also set ctx->error,
+     * so that the chain is not considered verified should the error be ignored
+     * (e.g. TLS with SSL_VERIFY_NONE).
+     */
+    if (ret <= 0 && ctx->error == X509_V_OK)
+        ctx->error = X509_V_ERR_UNSPECIFIED;
+    return ret;
+}
+
 
 /*-
  * Returns -1 on internal error.
@@ -298,7 +354,7 @@ int X509_verify_cert(X509_STORE_CTX *ctx)
     ctx->num_untrusted = 1;
 
     /* If the peer's public key is too weak, we can stop early. */
-    CB_FAIL_IF(!check_key_level(ctx, ctx->cert),
+    CB_FAIL_IF(!check_cert_key_level(ctx, ctx->cert),
                ctx, ctx->cert, 0, X509_V_ERR_EE_KEY_TOO_SMALL);
 
     ret = DANETLS_ENABLED(ctx->dane) ? dane_verify(ctx) : verify_chain(ctx);
@@ -2929,6 +2985,12 @@ static int check_leaf_suiteb(X509_STORE_CTX *ctx, X509 *cert)
 }
 
 /* Returns -1 on internal error */
+static int dane_verify_rpk(X509_STORE_CTX *ctx)
+{
+    return -1;
+}
+
+/* Returns -1 on i505nternal error */
 static int dane_verify(X509_STORE_CTX *ctx)
 {
     X509 *cert = ctx->cert;
@@ -3408,12 +3470,11 @@ static const int minbits_table[] = { 80, 112, 128, 192, 256 };
 static const int NUM_AUTH_LEVELS = OSSL_NELEM(minbits_table);
 
 /*-
- * Check whether the public key of `cert` meets the security level of `ctx`.
+ * Check whether the given public key meets the security level of `ctx`.
  * Returns 1 on success, 0 otherwise.
  */
-static int check_key_level(X509_STORE_CTX *ctx, X509 *cert)
+static int check_key_level(X509_STORE_CTX *ctx, EVP_PKEY *pkey)
 {
-    EVP_PKEY *pkey = X509_get0_pubkey(cert);
     int level = ctx->param->auth_level;
 
     /*
@@ -3433,6 +3494,15 @@ static int check_key_level(X509_STORE_CTX *ctx, X509 *cert)
         level = NUM_AUTH_LEVELS;
 
     return EVP_PKEY_get_security_bits(pkey) >= minbits_table[level - 1];
+}
+
+/*-
+ * Check whether the public key of `cert` meets the security level of `ctx`.
+ * Returns 1 on success, 0 otherwise.
+ */
+static int check_cert_key_level(X509_STORE_CTX *ctx, X509 *cert)
+{
+    return check_key_level(ctx, X509_get0_pubkey(cert));
 }
 
 /*-

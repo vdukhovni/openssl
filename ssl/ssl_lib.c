@@ -1399,6 +1399,7 @@ void ossl_ssl_connection_free(SSL *ssl)
     OPENSSL_free(s->ext.supportedgroups);
     OPENSSL_free(s->ext.peer_supportedgroups);
     sk_EVP_PKEY_pop_free(s->peer_rpks, EVP_PKEY_free);
+    EVP_PKEY_free(s->peer_rpk);
     sk_X509_EXTENSION_pop_free(s->ext.ocsp.exts, X509_EXTENSION_free);
 #ifndef OPENSSL_NO_OCSP
     sk_OCSP_RESPID_pop_free(s->ext.ocsp.ids, OCSP_RESPID_free);
