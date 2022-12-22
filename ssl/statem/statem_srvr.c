@@ -3528,11 +3528,34 @@ WORK_STATE tls_post_process_client_key_exchange(SSL_CONNECTION *s,
 MSG_PROCESS_RETURN tls_process_client_rpk(SSL_CONNECTION *sc, PACKET *pkt)
 {
     MSG_PROCESS_RETURN ret = MSG_PROCESS_ERROR;
+    size_t i;
+    int found = 0;
     SSL_SESSION *new_sess = NULL;
-    EVP_PKEY *peer_rpk = NULL;
 
-    if (!tls_process_rpk(sc, pkt, &peer_rpk)) {
+    if (!tls_process_rpk(sc, pkt)) {
         /* SSLfatal() already called */
+        goto err;
+    }
+
+    /* TODO: Remove this for X509_verify_rpk? */
+    /* Verify the received key is a configured one. */
+    for (i = 0; i < sk_EVP_PKEY_num(sc->peer_rpks); i++) {
+        EVP_PKEY *conf_pkey = sk_EVP_PKEY_value(sc->peer_rpks, i);
+
+        /*
+         * EVP_PKEY_eq() will throw an error for different types,
+         * so, check that first, and then explicitly check for 1
+         */
+        if (EVP_PKEY_get_id(sc->peer_rpk) == EVP_PKEY_get_id(conf_pkey)
+                && EVP_PKEY_eq(conf_pkey, sc->peer_rpk) == 1) {
+            found = 1;
+            break;
+        }
+    }
+    if (!found) {
+        /* TODO: POSSIBLE ERROR */
+        SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER,
+                 SSL_R_INVALID_CERTIFICATE_OR_RPK);
         goto err;
     }
 
@@ -3561,12 +3584,12 @@ MSG_PROCESS_RETURN tls_process_client_rpk(SSL_CONNECTION *sc, PACKET *pkt)
     sk_X509_pop_free(sc->session->peer_chain, X509_free);
     sc->session->peer_chain = NULL;
 
-    if (!EVP_PKEY_up_ref(peer_rpk)) {
+    if (!EVP_PKEY_up_ref(sc->peer_rpk)) {
         SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         goto err;
     }
     EVP_PKEY_free(sc->session->peer_rpk);
-    sc->session->peer_rpk = peer_rpk;
+    sc->session->peer_rpk = sc->peer_rpk;
 
     /*
      * Freeze the handshake buffer. For <TLS1.3 we do this after the CKE
