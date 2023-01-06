@@ -25,6 +25,7 @@
 # define SSL_R_APP_DATA_IN_HANDSHAKE                      100
 # define SSL_R_ATTEMPT_TO_REUSE_SESSION_IN_DIFFERENT_CONTEXT 272
 # define SSL_R_AT_LEAST_TLS_1_2_NEEDED_IN_SUITEB_MODE     158
+# define SSL_R_BAD_CERTIFICATE                            351
 # define SSL_R_BAD_CHANGE_CIPHER_SPEC                     103
 # define SSL_R_BAD_CIPHER                                 186
 # define SSL_R_BAD_COMPRESSION_ALGORITHM                  326

@@ -1275,6 +1275,7 @@ SSL_R_ATTEMPT_TO_REUSE_SESSION_IN_DIFFERENT_CONTEXT:272:\
 	attempt to reuse session in different context
 SSL_R_AT_LEAST_TLS_1_2_NEEDED_IN_SUITEB_MODE:158:\
 	at least (D)TLS 1.2 needed in Suite B mode
+SSL_R_BAD_CERTIFICATE:351:bad certificate
 SSL_R_BAD_CHANGE_CIPHER_SPEC:103:bad change cipher spec
 SSL_R_BAD_CIPHER:186:bad cipher
 SSL_R_BAD_COMPRESSION_ALGORITHM:326:bad compression algorithm

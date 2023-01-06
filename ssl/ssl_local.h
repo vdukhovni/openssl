@@ -1574,7 +1574,6 @@ struct ssl_connection_st {
     /* Verified chain of peer */
     STACK_OF(X509) *verified_chain;
     long verify_result;
-    EVP_PKEY *peer_rpk;
     /*
      * What we put in certificate_authorities extension for TLS 1.3
      * (ClientHello and CertificateRequest) or just client cert requests for
@@ -2583,6 +2582,7 @@ __owur int ssl_cert_set_current(CERT *c, long arg);
 void ssl_cert_set_cert_cb(CERT *c, int (*cb) (SSL *ssl, void *arg), void *arg);
 
 __owur int ssl_verify_cert_chain(SSL_CONNECTION *s, STACK_OF(X509) *sk);
+__owur int ssl_verify_rpk(SSL_CONNECTION *s, EVP_PKEY *rpk);
 __owur int ssl_build_cert_chain(SSL_CONNECTION *s, SSL_CTX *ctx, int flags);
 __owur int ssl_cert_set_cert_store(CERT *c, X509_STORE *store, int chain,
                                    int ref);

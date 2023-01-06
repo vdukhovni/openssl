@@ -1047,14 +1047,14 @@ EVP_PKEY* tls_get_peer_pkey(const SSL_CONNECTION *sc)
     return NULL;
 }
 
-int tls_process_rpk(SSL_CONNECTION *sc, PACKET *pkt)
+int tls_process_rpk(SSL_CONNECTION *sc, PACKET *pkt, EVP_PKEY **peer_rpk)
 {
-    int ret = 0;
     EVP_PKEY *pkey = NULL;
+    int ret = 0;
     RAW_EXTENSION *rawexts = NULL;
     PACKET extensions;
     PACKET context;
-    unsigned long cert_list_len, spki_len;
+    unsigned long cert_list_len, spki_len = 0;
     const unsigned char *spki, *spkistart;
     SSL_CTX *sctx = SSL_CONNECTION_GET_CTX(sc);
 
@@ -1084,30 +1084,34 @@ int tls_process_rpk(SSL_CONNECTION *sc, PACKET *pkt)
     }
 
     if (!PACKET_get_net_3(pkt, &cert_list_len)
-            || PACKET_remaining(pkt) != cert_list_len
-            || PACKET_remaining(pkt) == 0) {
+            || PACKET_remaining(pkt) != cert_list_len) {
         SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_LENGTH_MISMATCH);
         goto err;
     }
 
     /* RPK only admits a single CertificateEntry in the list, so no loop. */
-    if (!PACKET_get_net_3(pkt, &spki_len)
-            || spki_len == 0
-            || !PACKET_get_bytes(pkt, &spki, spki_len)) {
+    if (!PACKET_get_net_3(pkt, &spki_len)) {
         SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_LENGTH_MISMATCH);
         goto err;
     }
-    spkistart = spki;
-    if ((pkey = d2i_PUBKEY_ex(NULL, &spki, spki_len, sctx->libctx, sctx->propq)) == NULL
+    if (spki_len != 0) {
+        if (!PACKET_get_bytes(pkt, &spki, spki_len)) {
+            SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_LENGTH_MISMATCH);
+            goto err;
+        }
+        spkistart = spki;
+        if ((pkey = d2i_PUBKEY_ex(NULL, &spki, spki_len, sctx->libctx, sctx->propq)) == NULL
             || spki != (spkistart + spki_len)) {
-        SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_LENGTH_MISMATCH);
-        goto err;
+            SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_LENGTH_MISMATCH);
+            goto err;
+        }
+        if (EVP_PKEY_missing_parameters(pkey)) {
+            SSLfatal(sc, SSL_AD_INTERNAL_ERROR,
+                     SSL_R_UNABLE_TO_FIND_PUBLIC_KEY_PARAMETERS);
+            goto err;
+        }
     }
-    if (EVP_PKEY_missing_parameters(pkey)) {
-        SSLfatal(sc, SSL_AD_INTERNAL_ERROR,
-                 SSL_R_UNABLE_TO_FIND_PUBLIC_KEY_PARAMETERS);
-        goto err;
-    }
+    /* else empty RPK */
 
     /* Process the Extensions block */
     if (SSL_CONNECTION_IS_TLS13(sc)) {
@@ -1133,9 +1137,10 @@ int tls_process_rpk(SSL_CONNECTION *sc, PACKET *pkt)
         }
     }
     ret = 1;
-    EVP_PKEY_free(sc->peer_rpk);
-    sc->peer_rpk = pkey;
-    pkey = NULL;
+    if (peer_rpk) {
+        *peer_rpk = pkey;
+        pkey = NULL;
+    }
 
  err:
     OPENSSL_free(rawexts);
@@ -1145,7 +1150,7 @@ int tls_process_rpk(SSL_CONNECTION *sc, PACKET *pkt)
 
 static int tls_add_rpk(SSL_CONNECTION *sc, WPACKET *pkt, CERT_PKEY *cpk)
 {
-    int pdata_len;
+    int pdata_len = 0;
     unsigned char *pdata = NULL;
     X509_PUBKEY *xpk = NULL;
     int ret = 0;

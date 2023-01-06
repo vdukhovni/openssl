@@ -1863,15 +1863,23 @@ static MSG_PROCESS_RETURN tls_process_as_hello_retry_request(SSL_CONNECTION *s,
 
 MSG_PROCESS_RETURN tls_process_server_rpk(SSL_CONNECTION *sc, PACKET *pkt)
 {
-    if (!tls_process_rpk(sc, pkt)) {
+    EVP_PKEY *peer_rpk;
+
+    if (!tls_process_rpk(sc, pkt, &peer_rpk)) {
         /* SSLfatal() already called */
         return MSG_PROCESS_ERROR;
     }
 
+    if (peer_rpk == NULL) {
+        SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_BAD_CERTIFICATE);
+        return MSG_PROCESS_ERROR;
+    }
+
+    EVP_PKEY_free(sc->session->peer_rpk);
+    sc->session->peer_rpk = peer_rpk;
+
     return MSG_PROCESS_CONTINUE_PROCESSING;
 }
-
-
 
 WORK_STATE tls_post_process_server_rpk(SSL_CONNECTION *sc,
                                        WORK_STATE wst)
@@ -1879,15 +1887,19 @@ WORK_STATE tls_post_process_server_rpk(SSL_CONNECTION *sc,
     size_t certidx;
     const SSL_CERT_LOOKUP *clu;
 
-    if (sc->peer_rpk == NULL) {
+    if (sc->session->peer_rpk == NULL) {
         SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER,
                  SSL_R_INVALID_RAW_PUBLIC_KEY);
         return WORK_ERROR;
     }
 
-    /* TODO: Add X509_verify_rpk? */
+    if (sc->rwstate == SSL_RETRY_VERIFY)
+        sc->rwstate = SSL_NOTHING;
+    if (ssl_verify_rpk(sc, sc->session->peer_rpk) > 0
+            && sc->rwstate == SSL_RETRY_VERIFY)
+        return WORK_MORE_A;
 
-    if ((clu = ssl_cert_lookup_by_pkey(sc->peer_rpk, &certidx)) == NULL) {
+    if ((clu = ssl_cert_lookup_by_pkey(sc->session->peer_rpk, &certidx)) == NULL) {
         SSLfatal(sc, SSL_AD_ILLEGAL_PARAMETER, SSL_R_UNKNOWN_CERTIFICATE_TYPE);
         return WORK_ERROR;
     }
@@ -1904,18 +1916,12 @@ WORK_STATE tls_post_process_server_rpk(SSL_CONNECTION *sc,
         }
     }
 
+    /* Ensure there is no peer/peer_chain */
     X509_free(sc->session->peer);
     sc->session->peer = NULL;
-    sc->session->verify_result = X509_V_OK;
-
     sk_X509_pop_free(sc->session->peer_chain, X509_free);
     sc->session->peer_chain = NULL;
-    if (!EVP_PKEY_up_ref(sc->peer_rpk)) {
-        SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return WORK_ERROR;
-    }
-    EVP_PKEY_free(sc->session->peer_rpk);
-    sc->session->peer_rpk = sc->peer_rpk;
+    sc->session->verify_result = sc->verify_result;
 
     /* Save the current hash state for when we receive the CertificateVerify */
     if (SSL_CONNECTION_IS_TLS13(sc)
@@ -2037,6 +2043,7 @@ WORK_STATE tls_post_process_server_certificate(SSL_CONNECTION *s,
 
     if (s->ext.server_cert_type == TLSEXT_cert_type_rpk)
         return tls_post_process_server_rpk(s, wst);
+
     if (s->rwstate == SSL_RETRY_VERIFY)
         s->rwstate = SSL_NOTHING;
     i = ssl_verify_cert_chain(s, s->session->peer_chain);
@@ -2098,6 +2105,7 @@ WORK_STATE tls_post_process_server_certificate(SSL_CONNECTION *s,
     X509_up_ref(x);
     s->session->peer = x;
     s->session->verify_result = s->verify_result;
+    /* Ensure there is no RPK */
     EVP_PKEY_free(s->session->peer_rpk);
     s->session->peer_rpk = NULL;
 
