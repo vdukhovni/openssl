@@ -219,9 +219,7 @@ static int check_auth_level(X509_STORE_CTX *ctx)
 static int verify_rpk(X509_STORE_CTX *ctx)
 {
     /* Not much to verify on a RPK */
-    if (ctx->verify != NULL)
-        return ctx->verify(ctx);
-    return 1;
+    return (ctx->verify != NULL) ? ctx->verify(ctx) : internal_verify(ctx);
 }
 
 
@@ -1806,9 +1804,20 @@ int ossl_x509_check_cert_time(X509_STORE_CTX *ctx, X509 *x, int depth)
  */
 static int internal_verify(X509_STORE_CTX *ctx)
 {
-    int n = sk_X509_num(ctx->chain) - 1;
-    X509 *xi = sk_X509_value(ctx->chain, n);
-    X509 *xs = xi;
+    int n;
+    X509 *xi;
+    X509 *xs;
+
+    /* For RPK: just do the verify callback */
+    if (ctx->rpk != NULL) {
+        /* TODO: should this be (0, ctx)? since we can't validate an RPK except via DANE? */
+        if (!ctx->verify_cb(1, ctx))
+            return 0;
+        return 1;
+    }
+    n = sk_X509_num(ctx->chain) - 1;
+    xi = sk_X509_value(ctx->chain, n);
+    xs = xi;
 
     ctx->error_depth = n;
     if (ctx->bare_ta_signed) {
@@ -2396,6 +2405,15 @@ void X509_STORE_CTX_free(X509_STORE_CTX *ctx)
     OPENSSL_free(ctx);
 }
 
+
+int X509_STORE_CTX_init_rpk(X509_STORE_CTX *ctx, X509_STORE *store, EVP_PKEY *rpk)
+{
+    if (!X509_STORE_CTX_init(ctx, store, NULL, NULL))
+        return 0;
+    ctx->rpk = rpk;
+    return 1;
+}
+
 int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509 *x509,
                         STACK_OF(X509) *chain)
 {
@@ -2425,6 +2443,7 @@ int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509 *x509,
     ctx->parent = NULL;
     ctx->dane = NULL;
     ctx->bare_ta_signed = 0;
+    ctx->rpk = NULL;
     /* Zero ex_data to make sure we're cleanup-safe */
     memset(&ctx->ex_data, 0, sizeof(ctx->ex_data));
 
@@ -2586,6 +2605,11 @@ void X509_STORE_CTX_set_time(X509_STORE_CTX *ctx, unsigned long flags,
 X509 *X509_STORE_CTX_get0_cert(const X509_STORE_CTX *ctx)
 {
     return ctx->cert;
+}
+
+EVP_PKEY *X509_STORE_CTX_get0_rpk(const X509_STORE_CTX *ctx)
+{
+    return ctx->rpk;
 }
 
 STACK_OF(X509) *X509_STORE_CTX_get0_untrusted(const X509_STORE_CTX *ctx)
@@ -2987,7 +3011,19 @@ static int check_leaf_suiteb(X509_STORE_CTX *ctx, X509 *cert)
 /* Returns -1 on internal error */
 static int dane_verify_rpk(X509_STORE_CTX *ctx)
 {
-    return -1;
+    /* Temporary */
+    SSL_DANE *dane = ctx->dane;
+
+    dane_reset(dane);
+
+    /*
+     * Look for a DANE record for RPK
+     * If error, return -1
+     * If found, call ctx->verify_cb(1, ctx)
+     * If not found call ctx->verify_cb(0, ctx)
+     */
+    /* This basically calls ctx->verify_cb(1, ctx); */
+    return verify_rpk(ctx);
 }
 
 /* Returns -1 on i505nternal error */
