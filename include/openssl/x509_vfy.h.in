@@ -469,11 +469,14 @@ int X509_STORE_CTX_get1_issuer(X509 **issuer, X509_STORE_CTX *ctx, X509 *x);
 void X509_STORE_CTX_free(X509_STORE_CTX *ctx);
 int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *trust_store,
                         X509 *target, STACK_OF(X509) *untrusted);
+int X509_STORE_CTX_init_rpk(X509_STORE_CTX *ctx, X509_STORE *trust_store,
+                            EVP_PKEY* rpk);
 void X509_STORE_CTX_set0_trusted_stack(X509_STORE_CTX *ctx, STACK_OF(X509) *sk);
 void X509_STORE_CTX_cleanup(X509_STORE_CTX *ctx);
 
 X509_STORE *X509_STORE_CTX_get0_store(const X509_STORE_CTX *ctx);
 X509 *X509_STORE_CTX_get0_cert(const X509_STORE_CTX *ctx);
+EVP_PKEY *X509_STORE_CTX_get0_rpk(const X509_STORE_CTX *ctx);
 STACK_OF(X509)* X509_STORE_CTX_get0_untrusted(const X509_STORE_CTX *ctx);
 void X509_STORE_CTX_set0_untrusted(X509_STORE_CTX *ctx, STACK_OF(X509) *sk);
 void X509_STORE_CTX_set_verify_cb(X509_STORE_CTX *ctx,

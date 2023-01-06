@@ -3529,13 +3529,34 @@ MSG_PROCESS_RETURN tls_process_client_rpk(SSL_CONNECTION *sc, PACKET *pkt)
 {
     MSG_PROCESS_RETURN ret = MSG_PROCESS_ERROR;
     SSL_SESSION *new_sess = NULL;
+    EVP_PKEY *peer_rpk = NULL;
 
-    if (!tls_process_rpk(sc, pkt)) {
-        /* SSLfatal() already called */
+    /*
+     * To get this far we must have read encrypted data from the client. We no
+     * longer tolerate unencrypted alerts. This is ignored if less than TLSv1.3
+     */
+    if (sc->rlayer.rrlmethod->set_plain_alerts != NULL)
+        sc->rlayer.rrlmethod->set_plain_alerts(sc->rlayer.rrl, 0);
+
+    if (!tls_process_rpk(sc, pkt, &peer_rpk)) {
+        /* SSLfatal already called */
         goto err;
     }
 
-    /* TODO: Add X509_verify_rpk? */
+    if (peer_rpk == NULL) {
+        if ((sc->verify_mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
+                && (sc->verify_mode & SSL_VERIFY_PEER)) {
+            SSLfatal(sc, SSL_AD_CERTIFICATE_REQUIRED,
+                     SSL_R_PEER_DID_NOT_RETURN_A_CERTIFICATE);
+            goto err;
+        }
+    } else {
+        if (ssl_verify_rpk(sc, peer_rpk) <= 0) {
+            SSLfatal(sc, ssl_x509err2alert(sc->verify_result),
+                     SSL_R_CERTIFICATE_VERIFY_FAILED);
+            goto err;
+        }
+    }
 
     /*
      * Sessions must be immutable once they go into the session cache. Otherwise
@@ -3555,19 +3576,17 @@ MSG_PROCESS_RETURN tls_process_client_rpk(SSL_CONNECTION *sc, PACKET *pkt)
         sc->session = new_sess;
     }
 
+    /* Ensure there is no peer/peer_chain */
     X509_free(sc->session->peer);
     sc->session->peer = NULL;
-    sc->session->verify_result = X509_V_OK;
-
     sk_X509_pop_free(sc->session->peer_chain, X509_free);
     sc->session->peer_chain = NULL;
-
-    if (!EVP_PKEY_up_ref(sc->peer_rpk)) {
-        SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        goto err;
-    }
+    /* Save RPK */
     EVP_PKEY_free(sc->session->peer_rpk);
-    sc->session->peer_rpk = sc->peer_rpk;
+    sc->session->peer_rpk = peer_rpk;
+    peer_rpk = NULL;
+
+    sc->session->verify_result = sc->verify_result;
 
     /*
      * Freeze the handshake buffer. For <TLS1.3 we do this after the CKE
@@ -3594,6 +3613,7 @@ MSG_PROCESS_RETURN tls_process_client_rpk(SSL_CONNECTION *sc, PACKET *pkt)
     ret = MSG_PROCESS_CONTINUE_READING;
 
  err:
+    EVP_PKEY_free(peer_rpk);
     return ret;
 }
 
@@ -3613,11 +3633,6 @@ MSG_PROCESS_RETURN tls_process_client_certificate(SSL_CONNECTION *s,
 
     if (s->ext.client_cert_type == TLSEXT_cert_type_rpk)
         return tls_process_client_rpk(s, pkt);
-    if (s->ext.client_cert_type != TLSEXT_cert_type_x509) {
-        SSLfatal(s, SSL_AD_UNSUPPORTED_CERTIFICATE,
-                 SSL_R_UNKNOWN_CERTIFICATE_TYPE);
-        goto err;
-    }
 
     /*
      * To get this far we must have read encrypted data from the client. We no
@@ -3625,6 +3640,12 @@ MSG_PROCESS_RETURN tls_process_client_certificate(SSL_CONNECTION *s,
      */
     if (s->rlayer.rrlmethod->set_plain_alerts != NULL)
         s->rlayer.rrlmethod->set_plain_alerts(s->rlayer.rrl, 0);
+
+    if (s->ext.client_cert_type != TLSEXT_cert_type_x509) {
+        SSLfatal(s, SSL_AD_UNSUPPORTED_CERTIFICATE,
+                 SSL_R_UNKNOWN_CERTIFICATE_TYPE);
+        goto err;
+    }
 
     if ((sk = sk_X509_new_null()) == NULL) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_CRYPTO_LIB);
@@ -3757,6 +3778,7 @@ MSG_PROCESS_RETURN tls_process_client_certificate(SSL_CONNECTION *s,
     OSSL_STACK_OF_X509_free(s->session->peer_chain);
     s->session->peer_chain = sk;
     sk = NULL;
+    /* Ensure there is no RPK */
     EVP_PKEY_free(s->session->peer_rpk);
     s->session->peer_rpk = NULL;
 
