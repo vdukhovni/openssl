@@ -1881,8 +1881,8 @@ MSG_PROCESS_RETURN tls_process_server_rpk(SSL_CONNECTION *sc, PACKET *pkt)
     return MSG_PROCESS_CONTINUE_PROCESSING;
 }
 
-WORK_STATE tls_post_process_server_rpk(SSL_CONNECTION *sc,
-                                       WORK_STATE wst)
+static WORK_STATE tls_post_process_server_rpk(SSL_CONNECTION *sc,
+                                              WORK_STATE wst)
 {
     size_t certidx;
     const SSL_CERT_LOOKUP *clu;
