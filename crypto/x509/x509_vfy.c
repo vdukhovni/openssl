@@ -212,6 +212,39 @@ static int check_auth_level(X509_STORE_CTX *ctx)
     return 1;
 }
 
+/* No signing NID! */
+static int check_rpk_suite_b(EVP_PKEY *pkey, unsigned long flags)
+{
+#ifndef OPENSSL_NO_EC
+    char curve_name[80];
+    size_t curve_name_len;
+    int curve_nid;
+
+    if (!(flags & X509_V_FLAG_SUITEB_128_LOS))
+        return X509_V_OK;
+
+    if (pkey == NULL || !EVP_PKEY_is_a(pkey, "EC"))
+        return X509_V_ERR_SUITE_B_INVALID_ALGORITHM;
+
+    if (!EVP_PKEY_get_group_name(pkey, curve_name, sizeof(curve_name),
+                                 &curve_name_len))
+        return X509_V_ERR_SUITE_B_INVALID_CURVE;
+
+    curve_nid = OBJ_txt2nid(curve_name);
+    /* Check curve is consistent with LOS */
+    if (curve_nid == NID_secp384r1) { /* P-384 */
+        if (!(flags & X509_V_FLAG_SUITEB_192_LOS))
+            return X509_V_ERR_SUITE_B_LOS_NOT_ALLOWED;
+    } else if (curve_nid == NID_X9_62_prime256v1) { /* P-256 */
+        if (!(flags & X509_V_FLAG_SUITEB_128_LOS_ONLY))
+            return X509_V_ERR_SUITE_B_LOS_NOT_ALLOWED;
+    } else {
+        return X509_V_ERR_SUITE_B_INVALID_CURVE;
+    }
+#endif
+    return X509_V_OK;
+}
+
 /*-
  * Returns -1 on internal error.
  * Sadly, returns 0 also on internal error in ctx->verify_cb().
@@ -219,6 +252,10 @@ static int check_auth_level(X509_STORE_CTX *ctx)
 static int verify_rpk(X509_STORE_CTX *ctx)
 {
     /* Not much to verify on a RPK */
+    int err = check_rpk_suite_b(ctx->rpk, ctx->param->flags);
+
+    if (err != X509_V_OK)
+        ctx->error = err;
     return (ctx->verify != NULL) ? ctx->verify(ctx) : internal_verify(ctx);
 }
 
@@ -303,7 +340,6 @@ int X509_verify_rpk(X509_STORE_CTX *ctx)
         && verify_cb_cert(ctx, NULL, 0, X509_V_ERR_EE_KEY_TOO_SMALL))
         return 0;
 
-    /* Figure out what to do here */
     ret = DANETLS_ENABLED(ctx->dane) ? dane_verify_rpk(ctx) : verify_rpk(ctx);
 
     /*
@@ -1810,8 +1846,7 @@ static int internal_verify(X509_STORE_CTX *ctx)
 
     /* For RPK: just do the verify callback */
     if (ctx->rpk != NULL) {
-        /* TODO: should this be (0, ctx)? since we can't validate an RPK except via DANE? */
-        if (!ctx->verify_cb(1, ctx))
+        if (!ctx->verify_cb(ctx->error == X509_V_OK, ctx))
             return 0;
         return 1;
     }
@@ -2784,7 +2819,7 @@ static unsigned char *dane_i2d(X509 *cert, uint8_t selector,
 #define DANETLS_NONE 256 /* impossible uint8_t */
 
 /* Returns -1 on internal error */
-static int dane_match(X509_STORE_CTX *ctx, X509 *cert, int depth)
+static int dane_match_cert(X509_STORE_CTX *ctx, X509 *cert, int depth)
 {
     SSL_DANE *dane = ctx->dane;
     unsigned usage = DANETLS_NONE;
@@ -2942,7 +2977,7 @@ static int check_dane_issuer(X509_STORE_CTX *ctx, int depth)
      * for an exact match for the leaf certificate).
      */
     cert = sk_X509_value(ctx->chain, depth);
-    if (cert != NULL && (matched = dane_match(ctx, cert, depth)) < 0)
+    if (cert != NULL && (matched = dane_match_cert(ctx, cert, depth)) < 0)
         return matched;
     if (matched > 0) {
         ctx->num_untrusted = depth - 1;
@@ -2989,6 +3024,62 @@ static int check_dane_pkeys(X509_STORE_CTX *ctx)
     return X509_TRUST_UNTRUSTED;
 }
 
+/*
+ * Only DANE-EE and SPKI are supported
+ * Returns -1 on internal error
+ */
+static int dane_match_rpk(X509_STORE_CTX *ctx, EVP_PKEY *rpk)
+{
+    SSL_DANE *dane = ctx->dane;
+    danetls_record *t = NULL;
+    int mtype = DANETLS_MATCHING_FULL;
+    unsigned char *i2dbuf = NULL;
+    unsigned int i2dlen = 0;
+    unsigned char mdbuf[EVP_MAX_MD_SIZE];
+    unsigned char *cmpbuf;
+    unsigned int cmplen = 0;
+    int len;
+    int recnum = sk_danetls_record_num(dane->trecs);
+    int i;
+    int matched = 0;
+
+    /* Calculate ASN.1 DER of RPK */
+    if ((len = i2d_PUBKEY(rpk, &i2dbuf)) < 0)
+        return -1;
+    cmplen = i2dlen = (unsigned int)len;
+    cmpbuf = i2dbuf;
+
+    for (i = 0; i < recnum; i++) {
+        t = sk_danetls_record_value(dane->trecs, i);
+        if (t->usage != DANETLS_USAGE_DANE_EE || t->selector != DANETLS_SELECTOR_SPKI)
+            continue;
+
+        /* Calculate hash - keep only one around */
+        if (t->mtype != mtype) {
+            const EVP_MD *md = dane->dctx->mdevp[mtype = t->mtype];
+
+            cmpbuf = i2dbuf;
+            cmplen = i2dlen;
+
+            if (md != NULL) {
+                cmpbuf = mdbuf;
+                if (!EVP_Digest(i2dbuf, i2dlen, cmpbuf, &cmplen, md, 0)) {
+                    matched = -1;
+                    break;
+                }
+            }
+        }
+        if (cmplen == t->dlen && memcmp(cmpbuf, t->data, cmplen) == 0) {
+            matched = 1;
+            dane->pdpth = 1;
+            dane->mtlsa = t;
+            break;
+        }
+    }
+    OPENSSL_free(i2dbuf);
+    return matched;
+}
+
 static void dane_reset(SSL_DANE *dane)
 {
     /* Reset state to verify another chain, or clear after failure. */
@@ -3011,8 +3102,8 @@ static int check_leaf_suiteb(X509_STORE_CTX *ctx, X509 *cert)
 /* Returns -1 on internal error */
 static int dane_verify_rpk(X509_STORE_CTX *ctx)
 {
-    /* Temporary */
     SSL_DANE *dane = ctx->dane;
+    int matched;
 
     dane_reset(dane);
 
@@ -3022,11 +3113,23 @@ static int dane_verify_rpk(X509_STORE_CTX *ctx)
      * If found, call ctx->verify_cb(1, ctx)
      * If not found call ctx->verify_cb(0, ctx)
      */
-    /* This basically calls ctx->verify_cb(1, ctx); */
+    matched = dane_match_rpk(ctx, ctx->rpk);
+    ctx->error_depth = 0;
+
+    if (matched < 0) {
+        ctx->error = X509_V_ERR_OUT_OF_MEM;
+        return -1;
+    }
+
+    if (matched > 0)
+        ctx->error = X509_V_OK;
+    else
+        ctx->error = X509_V_ERR_DANE_NO_MATCH;
+
     return verify_rpk(ctx);
 }
 
-/* Returns -1 on i505nternal error */
+/* Returns -1 on internal error */
 static int dane_verify(X509_STORE_CTX *ctx)
 {
     X509 *cert = ctx->cert;
@@ -3048,7 +3151,7 @@ static int dane_verify(X509_STORE_CTX *ctx)
      *   + matched == 0, mdepth < 0 (no PKIX-EE match) and there are no
      *     DANE-TA(2) or PKIX-TA(0) to test.
      */
-    matched = dane_match(ctx, ctx->cert, 0);
+    matched = dane_match_cert(ctx, ctx->cert, 0);
     done = matched != 0 || (!DANETLS_HAS_TA(dane) && dane->mdpth < 0);
 
     if (done && !X509_get_pubkey_parameters(NULL, ctx->chain))
