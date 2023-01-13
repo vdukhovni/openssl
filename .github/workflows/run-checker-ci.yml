@@ -26,7 +26,6 @@ jobs:
           no-siv,
           no-legacy,
           no-rfc3779,
-          no-rpk,
           no-sock,
           no-srp,
           no-srtp,
