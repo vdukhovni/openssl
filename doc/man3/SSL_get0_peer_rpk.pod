@@ -2,6 +2,7 @@
 
 =head1 NAME
 
+SSL_add_expected_rpk,
 SSL_get_negotiated_client_cert_type,
 SSL_get_negotiated_server_cert_type,
 SSL_get0_peer_rpk,
@@ -11,12 +12,16 @@ SSL_SESSION_get0_peer_rpk - raw public key (RFC7250) support
 
  #include <openssl/ssl.h>
 
+ int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, int nid);
  int SSL_get_negotiated_client_cert_type(const SSL *s);
  int SSL_get_negotiated_server_cert_type(const SSL *s);
  EVP_PKEY *SSL_get0_peer_rpk(const SSL *s);
  EVP_PKEY *SSL_SESSION_get0_peer_rpk(const SSL_SESSION *ss);
 
 =head1 DESCRIPTION
+
+SSL_add_expected_rpk() adds a public key into the DANE TLSA database.
+argmument
 
 SSL_get_negotiated_client_cert_type() returns the negotiated client certificate
 type used on a conection.
@@ -45,7 +50,29 @@ connection (e.g. via SSL_use_certificate()), but if a certificate is not
 configured, then the public key will be extracted from the assigned
 private key.
 
+The SSL_add_expected_rpk() is a wrapper around SSL_dane_tlsa_add(). If DANE
+is enabled, the TLSA database will be used to match a raw public key.
+The B<nid> argument to SSL_add_expected_rpk() may be one of the following:
+
+=over 4
+
+=item NID_undef
+
+Use the full value DER value of the public keys for comparison.
+
+=item NID_sha256
+
+Use the SHA256 hash of the public keys for comparison.
+
+=item NID_sha512
+
+Use the SHA512 hash of the public keys for comparison.
+
+=back
+
 =head1 RETURN VALUES
+
+SSL_add_expected_rpk() returns 1 on success and 0 on failure.
 
 SSL_get0_peer_rpk() and SSL_SESSION_get0_peer_rpk() return the peer's raw
 public key as an EVP_PKEY or NULL when the raw public key is not available.
@@ -63,7 +90,9 @@ return the following values:
 
 =head1 SEE ALSO
 
+L<SSL_CTX_dane_enable(3)>,
 L<SSL_CTX_set_options(3)>,
+L<SSL_dane_enable(3)>,
 L<SSL_use_certificate(3)>
 
 =head1 HISTORY

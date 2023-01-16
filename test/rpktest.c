@@ -61,28 +61,6 @@ static int rpk_verify_server_cb(int ok, X509_STORE_CTX *ctx)
     return 1;
 }
 
-static int add_peer_rpk(SSL *s, EVP_PKEY *rpk)
-{
-    unsigned char *data = NULL;
-    size_t datalen;
-    int ret;
-    int ok = 1;
-
-    if ((ret = i2d_PUBKEY(rpk, &data)) <= 0)
-        return 0;
-    datalen = (unsigned int)ret;
-
-    if (SSL_dane_tlsa_add(s, DANETLS_USAGE_DANE_EE,
-                          DANETLS_SELECTOR_SPKI,
-                          DANETLS_MATCHING_FULL,
-                          data, datalen) <= 0)
-        ok = 0;
-
-    OPENSSL_free(data);
-    return ok;
-
-}
-
 /*
  * Test dimensions:
  *   (2) server_cert_type RPK off/on for server
@@ -290,17 +268,17 @@ static int test_rpk(int idx)
             goto end;
         break;
     case 0:
-        if (!TEST_true(add_peer_rpk(clientssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, NID_undef)))
             goto end;
         break;
     case 1:
-        if (!TEST_true(add_peer_rpk(clientssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, NID_undef)))
             goto end;
         break;
     case 2:
-        if (!TEST_true(add_peer_rpk(clientssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, NID_undef)))
             goto end;
-        if (!TEST_true(add_peer_rpk(serverssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, NID_undef)))
             goto end;
         /* Use the same key for client auth */
         if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))
@@ -313,33 +291,33 @@ static int test_rpk(int idx)
         client_auth = 1;
         break;
     case 3:
-        if (!TEST_true(add_peer_rpk(clientssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, NID_undef)))
             goto end;
-        if (!TEST_true(add_peer_rpk(clientssl, root_pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, root_pkey, NID_undef)))
             goto end;
         break;
     case 4:
-        if (!TEST_true(add_peer_rpk(clientssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, NID_undef)))
             goto end;
-        if (!TEST_true(add_peer_rpk(clientssl, other_pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, other_pkey, NID_undef)))
             goto end;
         break;
     case 5:
-        if (!TEST_true(add_peer_rpk(clientssl, root_pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, root_pkey, NID_undef)))
             goto end;
-        if (!TEST_true(add_peer_rpk(clientssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, NID_undef)))
             goto end;
         break;
     case 6:
-        if (!TEST_true(add_peer_rpk(clientssl, other_pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, other_pkey, NID_undef)))
             goto end;
-        if (!TEST_true(add_peer_rpk(clientssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, NID_undef)))
             goto end;
         break;
     case 7:
         if (idx_server_server_rpk == 1 && idx_client_server_rpk == 1)
             client_expected = -1;
-        if (!TEST_true(add_peer_rpk(clientssl, other_pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, other_pkey, NID_undef)))
             goto end;
         break;
     case 8:
@@ -352,9 +330,9 @@ static int test_rpk(int idx)
             testresult = TEST_skip("PHA requires TLSv1.3");
             goto end;
         }
-        if (!TEST_true(add_peer_rpk(clientssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, NID_undef)))
             goto end;
-        if (!TEST_true(add_peer_rpk(serverssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, NID_undef)))
             goto end;
         /* Use the same key for client auth */
         if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))
@@ -368,9 +346,9 @@ static int test_rpk(int idx)
         client_auth = 1;
         break;
     case 10:
-        if (!TEST_true(add_peer_rpk(clientssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, NID_undef)))
             goto end;
-        if (!TEST_true(add_peer_rpk(serverssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, NID_undef)))
             goto end;
         /* Use the same key for client auth */
         if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))
@@ -386,7 +364,7 @@ static int test_rpk(int idx)
             testresult = TEST_skip("Only testing resumption with server RPK");
             goto end;
         }
-        if (!TEST_true(add_peer_rpk(clientssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, NID_undef)))
             goto end;
         resumption = 1;
         break;
@@ -395,7 +373,7 @@ static int test_rpk(int idx)
             testresult = TEST_skip("Only testing resumption with server RPK");
             goto end;
         }
-        if (!TEST_true(add_peer_rpk(clientssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, NID_undef)))
             goto end;
         SSL_set_options(serverssl, SSL_OP_NO_TICKET);
         SSL_set_options(clientssl, SSL_OP_NO_TICKET);
@@ -410,9 +388,9 @@ static int test_rpk(int idx)
             testresult = TEST_skip("Only testing client authentication resumption with client RPK");
             goto end;
         }
-        if (!TEST_true(add_peer_rpk(clientssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, NID_undef)))
             goto end;
-        if (!TEST_true(add_peer_rpk(serverssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, NID_undef)))
             goto end;
         /* Use the same key for client auth */
         if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))
@@ -434,9 +412,9 @@ static int test_rpk(int idx)
             testresult = TEST_skip("Only testing client authentication resumption with client RPK");
             goto end;
         }
-        if (!TEST_true(add_peer_rpk(clientssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, NID_undef)))
             goto end;
-        if (!TEST_true(add_peer_rpk(serverssl, pkey)))
+        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, NID_undef)))
             goto end;
         /* Use the same key for client auth */
         if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))
