@@ -7261,6 +7261,62 @@ int SSL_stream_conclude(SSL *ssl, uint64_t flags)
 #endif
 }
 
+int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, int nid)
+{
+    unsigned char *i2dbuf = NULL;
+    SSL_DANE *dane = SSL_get0_dane(s);
+    size_t i2dlen;
+    unsigned char dgstbuf[EVP_MAX_MD_SIZE];
+    unsigned int dgstlen;
+    unsigned char *data;
+    size_t len;
+    int ret;
+    const EVP_MD *md = NULL;
+    int matching;
+    int ok = 0;
+
+    if (dane == NULL)
+        return 0;
+
+    switch (nid) {
+    case NID_undef:
+        matching = DANETLS_MATCHING_FULL;
+        break;
+    case NID_sha256:
+        matching = DANETLS_MATCHING_2256;
+        break;
+    case NID_sha512:
+        matching = DANETLS_MATCHING_2512;
+        break;
+    default:
+        goto err;
+    }
+
+    if ((ret = i2d_PUBKEY(rpk, &i2dbuf)) <= 0)
+        goto err;
+
+    len = i2dlen = (size_t)ret;
+    data = i2dbuf;
+
+    if ((md = dane->dctx->mdevp[matching]) != NULL) {
+        if (!EVP_Digest(i2dbuf, i2dlen, dgstbuf, &dgstlen, md, 0))
+            goto err;
+        data = dgstbuf;
+        len = (size_t)dgstlen;
+    }
+
+    if (SSL_dane_tlsa_add(s, DANETLS_USAGE_DANE_EE,
+                          DANETLS_SELECTOR_SPKI,
+                          matching,
+                          data, len) <= 0)
+        goto err;
+
+    ok = 1;
+ err:
+    OPENSSL_free(i2dbuf);
+    return ok;
+}
+
 EVP_PKEY *SSL_get0_peer_rpk(const SSL *s)
 {
     SSL_CONNECTION *sc = SSL_CONNECTION_FROM_SSL(s);
