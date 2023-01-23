@@ -134,7 +134,6 @@ B<openssl> B<s_client>
 {- $OpenSSL::safe::opt_v_synopsis -}
 [B<-enable_server_rpk>]
 [B<-enable_client_rpk>]
-[B<-peer_rpk> I<file>]
 [I<host>:I<port>]
 
 =head1 DESCRIPTION
@@ -830,15 +829,19 @@ proceed unless the B<-verify_return_error> option is used.
 
 =item B<-enable_server_rpk>
 
-Enable the use of server delivered raw public keys (RFC7250).
+Enable support for receiving raw public keys (RFC7250) from the server.
+Use of X.509 certificates by the server becomes optional, and servers that
+support raw public keys may elect to use them.
+Servers that don't support raw public keys or prefer to use X.509
+certificates can still elect to send X.509 certificates as usual.
 
 =item B<-enable_client_rpk>
 
-Enable the use of client delivered raw public keys (RFC7250).
-
-=item B<-peer_rpk> I<file>
-
-File containing a validated peer raw public key (RFC7250).
+Enable support for sending raw public keys (RFC7250) to the server.
+A raw public key will be sent by the client, if solicited by the server,
+provided a suitable key and public certificate pair is configured.
+Some servers may nevertheless not request any client credentials,
+or may request a certificate.
 
 =item I<host>:I<port>
 

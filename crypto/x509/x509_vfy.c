@@ -212,39 +212,6 @@ static int check_auth_level(X509_STORE_CTX *ctx)
     return 1;
 }
 
-/* No signing NID! */
-static int check_rpk_suite_b(EVP_PKEY *pkey, unsigned long flags)
-{
-#ifndef OPENSSL_NO_EC
-    char curve_name[80];
-    size_t curve_name_len;
-    int curve_nid;
-
-    if (!(flags & X509_V_FLAG_SUITEB_128_LOS))
-        return X509_V_OK;
-
-    if (pkey == NULL || !EVP_PKEY_is_a(pkey, "EC"))
-        return X509_V_ERR_SUITE_B_INVALID_ALGORITHM;
-
-    if (!EVP_PKEY_get_group_name(pkey, curve_name, sizeof(curve_name),
-                                 &curve_name_len))
-        return X509_V_ERR_SUITE_B_INVALID_CURVE;
-
-    curve_nid = OBJ_txt2nid(curve_name);
-    /* Check curve is consistent with LOS */
-    if (curve_nid == NID_secp384r1) { /* P-384 */
-        if (!(flags & X509_V_FLAG_SUITEB_192_LOS))
-            return X509_V_ERR_SUITE_B_LOS_NOT_ALLOWED;
-    } else if (curve_nid == NID_X9_62_prime256v1) { /* P-256 */
-        if (!(flags & X509_V_FLAG_SUITEB_128_LOS_ONLY))
-            return X509_V_ERR_SUITE_B_LOS_NOT_ALLOWED;
-    } else {
-        return X509_V_ERR_SUITE_B_INVALID_CURVE;
-    }
-#endif
-    return X509_V_OK;
-}
-
 /*-
  * Returns -1 on internal error.
  * Sadly, returns 0 also on internal error in ctx->verify_cb().
@@ -252,10 +219,6 @@ static int check_rpk_suite_b(EVP_PKEY *pkey, unsigned long flags)
 static int verify_rpk(X509_STORE_CTX *ctx)
 {
     /* Not much to verify on a RPK */
-    int err = check_rpk_suite_b(ctx->rpk, ctx->param->flags);
-
-    if (err != X509_V_OK)
-        ctx->error = err;
     return (ctx->verify != NULL) ? ctx->verify(ctx) : internal_verify(ctx);
 }
 
@@ -3044,7 +3007,7 @@ static int dane_match_rpk(X509_STORE_CTX *ctx, EVP_PKEY *rpk)
     int matched = 0;
 
     /* Calculate ASN.1 DER of RPK */
-    if ((len = i2d_PUBKEY(rpk, &i2dbuf)) < 0)
+    if ((len = i2d_PUBKEY(rpk, &i2dbuf)) <= 0)
         return -1;
     cmplen = i2dlen = (unsigned int)len;
     cmpbuf = i2dbuf;
@@ -3071,7 +3034,7 @@ static int dane_match_rpk(X509_STORE_CTX *ctx, EVP_PKEY *rpk)
         }
         if (cmplen == t->dlen && memcmp(cmpbuf, t->data, cmplen) == 0) {
             matched = 1;
-            dane->pdpth = 1;
+            dane->mdpth = 0;
             dane->mtlsa = t;
             break;
         }

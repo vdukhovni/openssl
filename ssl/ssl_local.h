@@ -43,8 +43,6 @@
 #  define OPENSSL_EXTERN OPENSSL_EXPORT
 # endif
 
-DEFINE_STACK_OF(EVP_PKEY)
-
 # define c2l(c,l)        (l = ((unsigned long)(*((c)++)))     , \
                          l|=(((unsigned long)(*((c)++)))<< 8), \
                          l|=(((unsigned long)(*((c)++)))<<16), \

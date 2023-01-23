@@ -1172,7 +1172,8 @@ static char *hexencode(const unsigned char *data, size_t len)
 void print_verify_detail(SSL *s, BIO *bio)
 {
     int mdpth;
-    EVP_PKEY *mspki;
+    X509 *mcert = NULL;
+    EVP_PKEY *mspki = NULL;
     long verify_err = SSL_get_verify_result(s);
 
     if (verify_err == X509_V_OK) {
@@ -1187,7 +1188,7 @@ void print_verify_detail(SSL *s, BIO *bio)
         BIO_printf(bio, "Verification error: %s\n", reason);
     }
 
-    if ((mdpth = SSL_get0_dane_authority(s, NULL, &mspki)) >= 0) {
+    if ((mdpth = SSL_get0_dane_authority(s, &mcert, &mspki)) >= 0) {
         uint8_t usage, selector, mtype;
         const unsigned char *data = NULL;
         size_t dlen = 0;
@@ -1207,12 +1208,15 @@ void print_verify_detail(SSL *s, BIO *bio)
             hexdata = hexencode(data + dlen - TLSA_TAIL_SIZE, TLSA_TAIL_SIZE);
         else
             hexdata = hexencode(data, dlen);
-        BIO_printf(bio, "DANE TLSA %d %d %d %s%s %s at depth %d\n",
+        BIO_printf(bio, "DANE TLSA %d %d %d %s%s matched %s",
                    usage, selector, mtype,
                    (dlen > TLSA_TAIL_SIZE) ? "..." : "", hexdata,
                    (mspki != NULL) ? "signed the certificate" :
-                   mdpth ? "matched TA certificate" : "matched EE certificate",
-                   mdpth);
+                   mdpth ? "TA" : "EE");
+        if (mcert != NULL)
+            BIO_printf(bio, " certificate at depth %d\n", mdpth);
+        else
+            BIO_printf(bio, " raw public key\n");
         OPENSSL_free(hexdata);
     }
 }
@@ -1220,17 +1224,16 @@ void print_verify_detail(SSL *s, BIO *bio)
 void print_ssl_summary(SSL *s)
 {
     const SSL_CIPHER *c;
-    X509 *peer;
+    X509 *peer = SSL_get0_peer_certificate(s);
+    EVP_PKEY *peer_rpk = SSL_get0_peer_rpk(s);
+    int nid;
 
     BIO_printf(bio_err, "Protocol version: %s\n", SSL_get_version(s));
     print_raw_cipherlist(s);
     c = SSL_get_current_cipher(s);
     BIO_printf(bio_err, "Ciphersuite: %s\n", SSL_CIPHER_get_name(c));
     do_print_sigalgs(bio_err, s, 0);
-    peer = SSL_get0_peer_certificate(s);
     if (peer != NULL) {
-        int nid;
-
         BIO_puts(bio_err, "Peer certificate: ");
         X509_NAME_print_ex(bio_err, X509_get_subject_name(peer),
                            0, get_nameopt());
@@ -1240,8 +1243,13 @@ void print_ssl_summary(SSL *s)
         if (SSL_get_peer_signature_type_nid(s, &nid))
             BIO_printf(bio_err, "Signature type: %s\n", get_sigtype(nid));
         print_verify_detail(s, bio_err);
+    } else if (peer_rpk != NULL) {
+        BIO_printf(bio_err, "Server used raw public key\n");
+        if (SSL_get_peer_signature_type_nid(s, &nid))
+            BIO_printf(bio_err, "Signature type: %s\n", get_sigtype(nid));
+        print_verify_detail(s, bio_err);
     } else {
-        BIO_puts(bio_err, "No peer certificate\n");
+        BIO_puts(bio_err, "No peer certificate nor raw public key\n");
     }
 #ifndef OPENSSL_NO_EC
     ssl_print_point_formats(bio_err, s);
@@ -1596,4 +1604,3 @@ int progress_cb(EVP_PKEY_CTX *ctx)
     (void)BIO_flush(b);
     return 1;
 }
-
