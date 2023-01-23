@@ -100,7 +100,6 @@ static int use_zc_sendfile = 0;
 
 static const char *session_id_prefix = NULL;
 
-static EVP_PKEY *peer_rpk = NULL;
 static const unsigned char cert_type_rpk[] = { TLSEXT_cert_type_rpk, TLSEXT_cert_type_x509 };
 static int enable_client_rpk = 0;
 
@@ -725,7 +724,6 @@ typedef enum OPTION_choice {
     OPT_TFO, OPT_CERT_COMP,
     OPT_ENABLE_SERVER_RPK,
     OPT_ENABLE_CLIENT_RPK,
-    OPT_PEER_RPK,
     OPT_R_ENUM,
     OPT_S_ENUM,
     OPT_V_ENUM,
@@ -979,7 +977,6 @@ const OPTIONS s_server_options[] = {
 #endif
     {"enable_server_rpk", OPT_ENABLE_SERVER_RPK, '-', "Enable raw public keys (RFC7250) from the server"},
     {"enable_client_rpk", OPT_ENABLE_CLIENT_RPK, '-', "Enable raw public keys (RFC7250) from the client"},
-    {"peer_rpk", OPT_PEER_RPK, '<', "PEM-encoded public-key or certificate with client RPK"},
     OPT_R_OPTIONS,
     OPT_S_OPTIONS,
     OPT_V_OPTIONS,
@@ -1078,8 +1075,6 @@ int s_server_main(int argc, char *argv[])
     int tfo = 0;
     int cert_comp = 0;
     int enable_server_rpk = 0;
-    char *peer_rpk_file = NULL;
-    X509 *peer_rpk_cert = NULL;
 
     /* Init of few remaining global variables */
     local_argc = argc;
@@ -1692,9 +1687,6 @@ int s_server_main(int argc, char *argv[])
         case OPT_ENABLE_CLIENT_RPK:
             enable_client_rpk = 1;
             break;
-        case OPT_PEER_RPK:
-            peer_rpk_file = opt_arg();
-            break;
         }
     }
 
@@ -1787,21 +1779,6 @@ int s_server_main(int argc, char *argv[])
 
     if (!load_excert(&exc))
         goto end;
-
-    if (peer_rpk_file != NULL) {
-        peer_rpk = load_pubkey(peer_rpk_file, s_key_format, 0, pass, engine, "client RPK file");
-        if (peer_rpk == NULL) {
-            peer_rpk_cert = load_cert(peer_rpk_file, s_cert_format, "client RPK file");
-            if (peer_rpk_cert != NULL) {
-                peer_rpk = X509_get_pubkey(peer_rpk_cert);
-            }
-        }
-        if (peer_rpk == NULL) {
-            BIO_printf(bio_err, "Error loading server RPK file\n");
-            ERR_print_errors(bio_err);
-            goto end;
-        }
-    }
 
     if (nocert == 0) {
         s_key = load_key(s_key_file, s_key_format, 0, pass, engine,
@@ -2363,9 +2340,6 @@ int s_server_main(int argc, char *argv[])
 #ifndef OPENSSL_NO_NEXTPROTONEG
     OPENSSL_free(next_proto.data);
 #endif
-    EVP_PKEY_free(peer_rpk);
-    peer_rpk = NULL;
-    X509_free(peer_rpk_cert);
     OPENSSL_free(alpn_ctx.data);
     ssl_excert_free(exc);
     sk_OPENSSL_STRING_free(ssl_args);
@@ -2575,10 +2549,6 @@ static int sv_body(int s, int stype, int prot, unsigned char *context)
     if (s_tlsextdebug) {
         SSL_set_tlsext_debug_callback(con, tlsext_cb);
         SSL_set_tlsext_debug_arg(con, bio_s_out);
-    }
-
-    if (peer_rpk != NULL) {
-        /* TODO: SSL_add_1_expected_peer_rpk(con, peer_rpk) */;
     }
 
     if (early_data) {
@@ -3236,10 +3206,6 @@ static int www_body(int s, int stype, int prot, unsigned char *context)
     SSL_set_bio(con, sbio, sbio);
     SSL_set_accept_state(con);
 
-    if (peer_rpk != NULL) {
-        /* TODO: SSL_add_1_expected_peer_rpk(con, peer_rpk) */;
-    }
-
     /* No need to free |con| after this. Done by BIO_free(ssl_bio) */
     BIO_set_ssl(ssl_bio, con, BIO_CLOSE);
     BIO_push(io, ssl_bio);
@@ -3646,10 +3612,6 @@ static int rev_body(int s, int stype, int prot, unsigned char *context)
         SSL_free(con);
         ERR_print_errors(bio_err);
         goto err;
-    }
-
-    if (peer_rpk != NULL) {
-        /* TODO: SSL_add_1_expected_peer_rpk(con, peer_rpk) */;
     }
 
     sbio = BIO_new_socket(s, BIO_NOCLOSE);

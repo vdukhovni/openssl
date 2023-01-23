@@ -509,28 +509,36 @@ static int test_rpk(int idx)
                 || !TEST_true(SSL_set_session(clientssl, client_sess)))
             goto end;
 
-        /* Set private key (and maybe certificate */
+        /* Set private key (and maybe certificate) */
         if (!TEST_int_eq(SSL_use_PrivateKey_file(serverssl, privkey_file, SSL_FILETYPE_PEM), 1))
             goto end;
         if (!TEST_int_eq(SSL_use_certificate_file(serverssl, cert_file, SSL_FILETYPE_PEM), 1))
             goto end;
         if (!TEST_int_eq(SSL_check_private_key(serverssl), 1))
             goto end;
+        if (!TEST_int_gt(SSL_dane_enable(serverssl, "example.com"), 0))
+            goto end;
+        if (!TEST_int_gt(SSL_dane_enable(clientssl, "example.com"), 0))
+            goto end;
 
         switch (idx) {
         default:
             break;
         case 11:
-            /* TODO: SSL_add1_expected_peer_rpk(clientssl, client_pkey) */
+            if (!TEST_true(SSL_add_expected_rpk(clientssl, client_pkey, NID_undef)))
+                goto end;
             break;
         case 12:
-            /* TODO: SSL_add1_expected_peer_rpk(clientssl, client_pkey) */
+            if (!TEST_true(SSL_add_expected_rpk(clientssl, client_pkey, NID_undef)))
+                goto end;
             SSL_set_options(clientssl, SSL_OP_NO_TICKET);
             SSL_set_options(serverssl, SSL_OP_NO_TICKET);
             break;
         case 13:
-            /* TODO: SSL_add1_expected_peer_rpk(clientssl, client_pkey) */
-            /* TODO: SSL_add1_expected_peer_rpk(serverssl, server_pkey) */
+            if (!TEST_true(SSL_add_expected_rpk(clientssl, client_pkey, NID_undef)))
+                goto end;
+            if (!TEST_true(SSL_add_expected_rpk(serverssl, server_pkey, NID_undef)))
+                goto end;
             /* Use the same key for client auth */
             if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))
                 goto end;
@@ -541,8 +549,10 @@ static int test_rpk(int idx)
             SSL_set_verify(serverssl, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, rpk_verify_server_cb);
             break;
         case 14:
-            /* TODO: SSL_add1_expected_peer_rpk(clientssl, client_pkey) */
-            /* TODO: SSL_add1_expected_peer_rpk(serverssl, server_pkey) */
+            if (!TEST_true(SSL_add_expected_rpk(clientssl, client_pkey, NID_undef)))
+                goto end;
+            if (!TEST_true(SSL_add_expected_rpk(serverssl, server_pkey, NID_undef)))
+                goto end;
             /* Use the same key for client auth */
             if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))
                 goto end;
@@ -565,7 +575,6 @@ static int test_rpk(int idx)
         if (!TEST_true(SSL_session_reused(clientssl)))
             goto end;
 
-        /* Get RPK from the session because it may be resumed */
         if (!TEST_ptr(SSL_get0_peer_rpk(clientssl)))
             goto end;
         if (!TEST_int_eq(SSL_get_negotiated_server_cert_type(serverssl), TLSEXT_cert_type_rpk))
