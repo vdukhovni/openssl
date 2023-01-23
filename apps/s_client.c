@@ -473,7 +473,6 @@ typedef enum OPTION_choice {
     OPT_ENABLE_PHA,
     OPT_ENABLE_SERVER_RPK,
     OPT_ENABLE_CLIENT_RPK,
-    OPT_PEER_RPK,
     OPT_SCTP_LABEL_BUG,
     OPT_KTLS,
     OPT_R_ENUM, OPT_PROV_ENUM
@@ -666,7 +665,6 @@ const OPTIONS s_client_options[] = {
     {"enable_pha", OPT_ENABLE_PHA, '-', "Enable post-handshake-authentication"},
     {"enable_server_rpk", OPT_ENABLE_SERVER_RPK, '-', "Enable raw public keys (RFC7250) from the server"},
     {"enable_client_rpk", OPT_ENABLE_CLIENT_RPK, '-', "Enable raw public keys (RFC7250) from the client"},
-    {"peer_rpk", OPT_PEER_RPK, '<', "PEM-encoded public-key or certificate with server RPK"},
 #ifndef OPENSSL_NO_SRTP
     {"use_srtp", OPT_USE_SRTP, 's',
      "Offer SRTP key management with a colon-separated profile list"},
@@ -906,9 +904,6 @@ int s_client_main(int argc, char **argv)
     char *psksessf = NULL;
     int enable_pha = 0;
     int enable_client_rpk = 0;
-    X509 *peer_rpk_cert = NULL;
-    EVP_PKEY *peer_rpk = NULL;
-    char *peer_rpk_file = NULL;
 #ifndef OPENSSL_NO_SCTP
     int sctp_label_bug = 0;
 #endif
@@ -1508,9 +1503,6 @@ int s_client_main(int argc, char **argv)
         case OPT_ENABLE_CLIENT_RPK:
             enable_client_rpk = 1;
             break;
-        case OPT_PEER_RPK:
-            peer_rpk_file = opt_arg();
-            break;
         }
     }
 
@@ -1708,21 +1700,6 @@ int s_client_main(int argc, char **argv)
 
     if (!load_excert(&exc))
         goto end;
-
-    if (peer_rpk_file != NULL) {
-        peer_rpk = load_pubkey(peer_rpk_file, key_format, 0, pass, e, "server RPK file");
-        if (peer_rpk == NULL) {
-            peer_rpk_cert = load_cert(peer_rpk_file, key_format, "server RPK file");
-            if (peer_rpk_cert != NULL) {
-                peer_rpk = X509_get_pubkey(peer_rpk_cert);
-            }
-        }
-        if (peer_rpk == NULL) {
-            BIO_printf(bio_err, "Error loading server RPK file\n");
-            ERR_print_errors(bio_err);
-            goto end;
-        }
-    }
 
     if (bio_c_out == NULL) {
         if (c_quiet && !c_debug) {
@@ -2026,9 +2003,6 @@ int s_client_main(int argc, char **argv)
         if (!SSL_set1_server_cert_type(con, cert_type_rpk, sizeof(cert_type_rpk))) {
             BIO_printf(bio_err, "Error setting server certificate types\n");
             goto end;
-        }
-        if (peer_rpk != NULL) {
-            /* TODO: SSL_add1_expected_peer_rpk(con, peer_rpk) */;
         }
     }
 
@@ -3220,8 +3194,6 @@ int s_client_main(int argc, char **argv)
 #endif
     OPENSSL_free(sname_alloc);
     BIO_ADDR_free(tfo_addr);
-    EVP_PKEY_free(peer_rpk);
-    X509_free(peer_rpk_cert);
     OPENSSL_free(connectstr);
     OPENSSL_free(bindstr);
     OPENSSL_free(bindhost);

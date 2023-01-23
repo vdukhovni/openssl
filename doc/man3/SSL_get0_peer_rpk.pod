@@ -20,14 +20,14 @@ SSL_SESSION_get0_peer_rpk - raw public key (RFC7250) support
 
 =head1 DESCRIPTION
 
-SSL_add_expected_rpk() adds a public key into the DANE TLSA database.
-argmument
+SSL_add_expected_rpk() adds public key B<rpk> into the SSL B<s>'s DANE TLSA database.
+The B<nid> argument specifies the hash method to use.
 
 SSL_get_negotiated_client_cert_type() returns the negotiated client certificate
-type used on a conection.
+type used on a conection represented by B<s>.
 
 SSL_get_negotiated_server_cert_type() returns the negotiated server certificate
-type used on a conection.
+type used on a conection represented by B<s>.
 
 SSL_get0_peer_rpk() returns the peer's raw public key from SSL B<s>.
 
@@ -39,11 +39,12 @@ SSL_SESSION B<ss> in the case of resumption.
 Raw public keys are used in place of certificates when the option is
 negotiated. Adding more than one key is possible to allow for key rotation,
 where a peer might be expected to offer an "old" or "new" key and the endpoint
-must be able to accept either one.  It also enables the use of different
-types of keys along with signature-algorithm negotiation.
+must be able to accept either one.
 
-When raw public keys are used, the certificate verify callback is not called.
-Raw public keys have no subject, issuer, validity dates nor digital signature.
+When raw public keys are used, the certificate verify callback is called, and
+may be used to validate the public key via X509_STORE_CTX_get0_rpk(3).
+Raw public keys have no subject, issuer, validity dates nor digital signature
+to verify.
 
 The raw public key is normally taken from the certificate assigned to the
 connection (e.g. via SSL_use_certificate()), but if a certificate is not
@@ -58,7 +59,7 @@ The B<nid> argument to SSL_add_expected_rpk() may be one of the following:
 
 =item NID_undef
 
-Use the full value DER value of the public keys for comparison.
+Use the full value DER value of the public keys for comparison (i.e. no hash).
 
 =item NID_sha256
 
@@ -78,7 +79,7 @@ SSL_get0_peer_rpk() and SSL_SESSION_get0_peer_rpk() return the peer's raw
 public key as an EVP_PKEY or NULL when the raw public key is not available.
 
 SSL_get_negotiated_client_cert_type() and SSL_get_negotiated_server_cert_type()
-return the following values:
+return one of the following values:
 
 =over 4
 
@@ -93,7 +94,8 @@ return the following values:
 L<SSL_CTX_dane_enable(3)>,
 L<SSL_CTX_set_options(3)>,
 L<SSL_dane_enable(3)>,
-L<SSL_use_certificate(3)>
+L<SSL_use_certificate(3)>,
+L<X509_STORE_CTX_get0_rpk(3)>
 
 =head1 HISTORY
 
@@ -101,6 +103,6 @@ These functions were added in OpenSSL 3.2.
 
 =head1 COPYRIGHT
 
-Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
 
 =cut

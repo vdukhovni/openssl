@@ -25,6 +25,14 @@ OpenSSL 3.2
 
 ### Changes between 3.1 and 3.2 [xx XXX xxxx]
 
+ * Add Raw Public Key (RFC7250) support. Authentication is supported
+   by matching keys against either local policy (TLSA records synthesised
+   from from the expected keys) or DANE (TLSA records obtained by the
+   application from DNS). TLSA records will also match the same key in
+   the server certificate, should RPK use not happen to be negotiated.
+
+   *Todd Short*
+
  * Added EC_GROUP_to_params which creates an OSSL_PARAM array
    from a given EC_GROUP.
 
@@ -51,10 +59,6 @@ OpenSSL 3.2
    added to the existing STACK_OF attrs.
 
    *Graham Woodward*
-
- * Add Raw Public Key (RFC7250) support.
-
-   *Todd Short*
 
  * Major refactor of the libssl record layer
 
