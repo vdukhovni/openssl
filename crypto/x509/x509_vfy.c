@@ -303,6 +303,9 @@ int X509_verify_rpk(X509_STORE_CTX *ctx)
         && verify_cb_cert(ctx, NULL, 0, X509_V_ERR_EE_KEY_TOO_SMALL))
         return 0;
 
+    /* Barring any data to verify the RPK, simply report it untrusted */
+    ctx->error = X509_V_ERR_RPK_UNTRUSTED;
+
     ret = DANETLS_ENABLED(ctx->dane) ? dane_verify_rpk(ctx) : verify_rpk(ctx);
 
     /*
