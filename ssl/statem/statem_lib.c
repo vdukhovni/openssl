@@ -1054,7 +1054,7 @@ int tls_process_rpk(SSL_CONNECTION *sc, PACKET *pkt, EVP_PKEY **peer_rpk)
     RAW_EXTENSION *rawexts = NULL;
     PACKET extensions;
     PACKET context;
-    unsigned long cert_list_len, spki_len = 0;
+    unsigned long spki_len = 0;
     const unsigned char *spki, *spkistart;
     SSL_CTX *sctx = SSL_CONNECTION_GET_CTX(sc);
 
@@ -1083,13 +1083,7 @@ int tls_process_rpk(SSL_CONNECTION *sc, PACKET *pkt, EVP_PKEY **peer_rpk)
         }
     }
 
-    if (!PACKET_get_net_3(pkt, &cert_list_len)
-            || PACKET_remaining(pkt) != cert_list_len) {
-        SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_LENGTH_MISMATCH);
-        goto err;
-    }
-
-    /* RPK only admits a single CertificateEntry in the list, so no loop. */
+    /* RPK consists of a single optional non-empty entry, not a list. */
     if (!PACKET_get_net_3(pkt, &spki_len)) {
         SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_LENGTH_MISMATCH);
         goto err;
@@ -1155,35 +1149,27 @@ static int tls_add_rpk(SSL_CONNECTION *sc, WPACKET *pkt, CERT_PKEY *cpk)
     X509_PUBKEY *xpk = NULL;
     int ret = 0;
 
-    if (cpk == NULL)
-        return 1;
-
-    if (cpk->x509 != NULL) {
+    if (cpk && cpk->x509 != NULL) {
         /* Get the RPK from the certificate */
         xpk = X509_get_X509_PUBKEY(cpk->x509);
-        if (xpk == NULL) {
-            SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-            goto err;
-        }
-        pdata_len = i2d_X509_PUBKEY(xpk, &pdata);
-    } else if (cpk->privatekey != NULL) {
+        if (xpk != NULL)
+            pdata_len = i2d_X509_PUBKEY(xpk, &pdata);
+    } else if (cpk && cpk->privatekey != NULL) {
         /* Get the RPK from the private key */
         pdata_len = i2d_PUBKEY(cpk->privatekey, &pdata);
-    } else {
+    } else if (WPACKET_sub_memcpy_u24(pkt, NULL, 0) != 0) {
+        /* Empty RPK message, so also no extensions block */
         return 1;
     }
-    if (pdata_len <= 0) {
-        SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_BUF_LIB);
-        goto err;
-    }
-    if (!WPACKET_sub_memcpy_u24(pkt, pdata, pdata_len)) {
+    if (pdata_len <= 0 || !WPACKET_sub_memcpy_u24(pkt, pdata, pdata_len)) {
         SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         goto err;
     }
 
     if (SSL_CONNECTION_IS_TLS13(sc)) {
         if (cpk->x509 != NULL) {
-            if (!tls_construct_extensions(sc, pkt, SSL_EXT_TLS1_3_CERTIFICATE, cpk->x509, 0)) {
+            if (!tls_construct_extensions(sc, pkt, SSL_EXT_TLS1_3_CERTIFICATE,
+                                          cpk->x509, 0)) {
                 /* SSLfatal() already called */
                 goto err;
             }
@@ -1204,21 +1190,10 @@ static int tls_add_rpk(SSL_CONNECTION *sc, WPACKET *pkt, CERT_PKEY *cpk)
 
 unsigned long tls_output_rpk(SSL_CONNECTION *sc, WPACKET *pkt, CERT_PKEY *cpk)
 {
-    if (!WPACKET_start_sub_packet_u24(pkt)) {
-        SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return 0;
-    }
-
     if (!tls_add_rpk(sc, pkt, cpk)) {
         /* SSLfatal() already called */
         return 0;
     }
-
-    if (!WPACKET_close(pkt)) {
-        SSLfatal(sc, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return 0;
-    }
-
     return 1;
 }
 
