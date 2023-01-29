@@ -52,7 +52,6 @@
 # define X509_R_NO_CERT_SET_FOR_US_TO_VERIFY              105
 # define X509_R_NO_CRL_FOUND                              137
 # define X509_R_NO_CRL_NUMBER                             130
-# define X509_R_NO_RPK_SET_FOR_US_TO_VERIFY               145
 # define X509_R_PUBLIC_KEY_DECODE_ERROR                   125
 # define X509_R_PUBLIC_KEY_ENCODE_ERROR                   126
 # define X509_R_SHOULD_RETRY                              106

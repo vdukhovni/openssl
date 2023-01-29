@@ -1774,7 +1774,6 @@ X509_R_NO_CERTIFICATE_OR_CRL_FOUND:136:no certificate or crl found
 X509_R_NO_CERT_SET_FOR_US_TO_VERIFY:105:no cert set for us to verify
 X509_R_NO_CRL_FOUND:137:no crl found
 X509_R_NO_CRL_NUMBER:130:no crl number
-X509_R_NO_RPK_SET_FOR_US_TO_VERIFY:145:no rpk set for us to verify
 X509_R_PUBLIC_KEY_DECODE_ERROR:125:public key decode error
 X509_R_PUBLIC_KEY_ENCODE_ERROR:126:public key encode error
 X509_R_SHOULD_RETRY:106:should retry

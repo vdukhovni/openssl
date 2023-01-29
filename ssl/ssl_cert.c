@@ -463,10 +463,7 @@ static int ssl_verify_internal(SSL_CONNECTION *s, STACK_OF(X509) *sk, EVP_PKEY *
     if (sctx->app_verify_callback != NULL) {
         i = sctx->app_verify_callback(ctx, sctx->app_verify_arg);
     } else {
-        if (sk != NULL)
-            i = X509_verify_cert(ctx);
-        else
-            i = X509_verify_rpk(ctx);
+        i = X509_verify_cert(ctx);
         /* We treat an error in the same way as a failure to verify */
         if (i < 0)
             i = 0;

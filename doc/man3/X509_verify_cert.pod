@@ -4,7 +4,6 @@
 
 X509_build_chain,
 X509_verify_cert,
-X509_verify_rpk,
 X509_STORE_CTX_verify - build and verify X509 certificate chain
 
 =head1 SYNOPSIS
@@ -15,7 +14,6 @@ X509_STORE_CTX_verify - build and verify X509 certificate chain
                                   X509_STORE *store, int with_self_signed,
                                   OSSL_LIB_CTX *libctx, const char *propq);
  int X509_verify_cert(X509_STORE_CTX *ctx);
- int X509_verify_rpk(X509_STORE_CTX *ctx);
  int X509_STORE_CTX_verify(X509_STORE_CTX *ctx);
 
 =head1 DESCRIPTION
@@ -57,14 +55,15 @@ A negative return value can also happen due to internal resource problems
 or because an internal inconsistency has been detected.
 Applications must interpret any return value <= 0 as an error.
 
-The X509_verify_rpk() function validates a raw public key based on parameters
-in I<ctx>. This behaves similar to X509_verify_cert(), except that the number
-of possible checks is significantly reduced. The raw public key is authenticated
-only via DANE TLSA records.
-
 The X509_STORE_CTX_verify() behaves like X509_verify_cert() except that its
 target certificate is the first element of the list of untrusted certificates
 in I<ctx> unless a target certificate is set explicitly.
+
+When the verification target is a raw public key, rather than a certificate,
+both functions validate the target raw public key.
+In that case the number of possible checks is significantly reduced.
+The raw public key can be authenticated only via DANE TLSA records, either
+locally synthesised or obtained by the application from DNS.
 
 =head1 RETURN VALUES
 
@@ -80,10 +79,6 @@ If the certificate must be rejected on the basis of the data available
 or any required certificate status data is not available they return 0.
 If no definite answer possible they usually return a negative code.
 
-X509_verify_rpk() returns 1 if a raw public key can be validated, otherwise
-it returns 0, and in exceptional circumstances (such as malloc
-failure and internal errors) it can also return a negative code.
-
 On error or failure additional error information can be obtained by
 examining I<ctx> using, for example, L<X509_STORE_CTX_get_error(3)>.  Even if
 verification indicated success, the stored error code may be different from
@@ -92,7 +87,9 @@ X509_V_OK, likely because a verification callback function has waived the error.
 =head1 SEE ALSO
 
 L<SSL_CTX_dane_enable(3)>,
-L<X509_STORE_CTX_new(3)>, L<X509_STORE_CTX_init(3)>,
+L<X509_STORE_CTX_new(3)>,
+L<X509_STORE_CTX_init(3)>,
+L<X509_STORE_CTX_init_rpk(3)>,
 L<X509_STORE_CTX_get_error(3)>
 
 =head1 HISTORY

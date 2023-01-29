@@ -41,6 +41,8 @@
 #define CRL_SCORE_AKID          0x004 /* CRL issuer matches CRL AKID */
 #define CRL_SCORE_TIME_DELTA    0x002 /* Have a delta CRL with valid times */
 
+static int x509_verify_x509(X509_STORE_CTX *ctx);
+static int x509_verify_rpk(X509_STORE_CTX *ctx);
 static int build_chain(X509_STORE_CTX *ctx);
 static int verify_chain(X509_STORE_CTX *ctx);
 static int verify_rpk(X509_STORE_CTX *ctx);
@@ -219,7 +221,10 @@ static int check_auth_level(X509_STORE_CTX *ctx)
 static int verify_rpk(X509_STORE_CTX *ctx)
 {
     /* Not much to verify on a RPK */
-    return (ctx->verify != NULL) ? ctx->verify(ctx) : internal_verify(ctx);
+    if (ctx->verify)
+        return ctx->verify(ctx);
+
+    return !!ctx->verify_cb(ctx->error == X509_V_OK, ctx);
 }
 
 
@@ -273,30 +278,28 @@ int X509_STORE_CTX_verify(X509_STORE_CTX *ctx)
         return -1;
     }
     if (ctx->rpk != NULL)
-        return X509_verify_rpk(ctx);
+        return x509_verify_rpk(ctx);
     if (ctx->cert == NULL && sk_X509_num(ctx->untrusted) >= 1)
         ctx->cert = sk_X509_value(ctx->untrusted, 0);
-    return X509_verify_cert(ctx);
+    return x509_verify_x509(ctx);
 }
 
+int X509_verify_cert(X509_STORE_CTX *ctx)
+{
+    if (ctx == NULL) {
+        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
+        return -1;
+    }
+    return (ctx->rpk != NULL) ?  x509_verify_rpk(ctx) : x509_verify_x509(ctx);
+}
 
 /*-
  * Returns -1 on internal error.
  * Sadly, returns 0 also on internal error in ctx->verify_cb().
  */
-int X509_verify_rpk(X509_STORE_CTX *ctx)
+static int x509_verify_rpk(X509_STORE_CTX *ctx)
 {
     int ret;
-
-    if (ctx == NULL) {
-        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
-        return -1;
-    }
-    if (ctx->rpk == NULL) {
-        ERR_raise(ERR_LIB_X509, X509_R_NO_RPK_SET_FOR_US_TO_VERIFY);
-        ctx->error = X509_V_ERR_INVALID_CALL;
-        return -1;
-    }
 
     /* If the peer's public key is too weak, we can stop early. */
     if (!check_key_level(ctx, ctx->rpk)
@@ -318,19 +321,14 @@ int X509_verify_rpk(X509_STORE_CTX *ctx)
     return ret;
 }
 
-
 /*-
  * Returns -1 on internal error.
  * Sadly, returns 0 also on internal error in ctx->verify_cb().
  */
-int X509_verify_cert(X509_STORE_CTX *ctx)
+static int x509_verify_x509(X509_STORE_CTX *ctx)
 {
     int ret;
 
-    if (ctx == NULL) {
-        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
-        return -1;
-    }
     if (ctx->cert == NULL) {
         ERR_raise(ERR_LIB_X509, X509_R_NO_CERT_SET_FOR_US_TO_VERIFY);
         ctx->error = X509_V_ERR_INVALID_CALL;
@@ -2283,6 +2281,11 @@ X509_STORE_CTX *X509_STORE_CTX_get0_parent_ctx(const X509_STORE_CTX *ctx)
 void X509_STORE_CTX_set_cert(X509_STORE_CTX *ctx, X509 *x)
 {
     ctx->cert = x;
+}
+
+void X509_STORE_CTX_set0_rpk(X509_STORE_CTX *ctx, EVP_PKEY *rpk)
+{
+    ctx->rpk = rpk;
 }
 
 void X509_STORE_CTX_set0_crls(X509_STORE_CTX *ctx, STACK_OF(X509_CRL) *sk)
