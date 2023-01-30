@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -394,7 +394,7 @@ static int ssl_verify_internal(SSL_CONNECTION *s, STACK_OF(X509) *sk, EVP_PKEY *
     SSL_CTX *sctx;
 
     /* Something must be passed in */
-    if (((sk == NULL) || (sk_X509_num(sk) == 0)) && rpk == NULL)
+    if ((sk == NULL || sk_X509_num(sk) == 0) && rpk == NULL)
         return 0;
 
     /* Only one can be set */

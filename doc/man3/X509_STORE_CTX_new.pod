@@ -100,7 +100,7 @@ list of untrusted certificates as its verification target,
 this can be also set indirectly using X509_STORE_CTX_set0_untrusted().
 
 X509_STORE_CTX_init_rpk() sets up I<ctx> for a subsequent verification
-operatrion for a raw public key. It behaves similarly to X509_STORE_CTX_init().
+operation for a raw public key. It behaves similarly to X509_STORE_CTX_init().
 
 X509_STORE_CTX_set0_trusted_stack() sets the set of trusted certificates of
 I<ctx> to I<sk>. This is an alternative way of specifying trusted certificates
@@ -295,7 +295,7 @@ There is no need to call X509_STORE_CTX_cleanup() explicitly since OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

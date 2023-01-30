@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  * Copyright 2005 Nokia. All rights reserved.
  *
@@ -47,7 +47,7 @@ IMPLEMENT_ASN1_FUNCTIONS(GOST_KX_MESSAGE)
 static CON_FUNC_RETURN tls_construct_encrypted_extensions(SSL_CONNECTION *s,
                                                           WPACKET *pkt);
 
-static ossl_inline int received_client_cert(SSL_CONNECTION *sc)
+static ossl_inline int received_client_cert(const SSL_CONNECTION *sc)
 {
     return sc->session->peer_rpk != NULL || sc->session->peer != NULL;
 }
