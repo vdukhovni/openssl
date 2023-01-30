@@ -26,20 +26,20 @@ SSL_CTX_get0_server_cert_type - certificate type (RFC7250) support
 
 =head1 DESCRIPTION
 
-The SSL_set1_client_cert_type() and SSL_CTX_set1_client_cert_type() set the
+The SSL_set1_client_cert_type() and SSL_CTX_set1_client_cert_type() functions set the
 values for the client certificate type extension. The SSL_get0_client_cert_type()
-and SSL_CTX_get0_client_cert_type() retreive the local values to be used in the client
+and SSL_CTX_get0_client_cert_type() retrieve the local values to be used in the client
 certificate type extension.
 
-The SSL_set1_server_cert_type() and SSL_CTX_set1_server_cert_type() set the
+The SSL_set1_server_cert_type() and SSL_CTX_set1_server_cert_type() functions set the
 values for the server certificate type extension. The SSL_get0_server_cert_type()
-and SSL_CTX_get0_server_cert_type() retreive the local values to be used in the server
+and SSL_CTX_get0_server_cert_type() retrieve the local values to be used in the server
 certificate type extension.
 
 =head1 NOTES
 
 The certificate type extensions are used to negotiate the certificate type to be
-used in the handshake. These extentions act as notifications, and let each side
+used in the handshake. These extentions let each side
 know what its peer is able to accept.
 
 The client certificate type is sent from the client to the server to indicate what
@@ -78,7 +78,7 @@ certificate type and negotiated.
 Raw public keys have no subject, issuer, validity dates nor digital signature.
 
 Use the SSL_get_negotiated_client_cert_type(3) and SSL_get_negotiated_server_cert_type(3)
-to get the negotiated cert type values.
+functions to get the negotiated cert type values.
 
 =head1 RETURN VALUES
 
