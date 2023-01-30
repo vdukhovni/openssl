@@ -115,12 +115,10 @@ Ownership of the chain is transferred to I<ctx>,
 and so it should not be free'd by the caller.
 
 X509_STORE_CTX_get0_chain() returns the internal pointer used by the
-I<ctx> that contains the constructed (output) chain. It may be NULL if a
-raw public key is being validated.
+I<ctx> that contains the constructed (output) chain.
 
 X509_STORE_CTX_get0_rpk() returns the internal pointer used by the
-I<ctx> that contains the raw public key. It may be NULL if a certificate
-is being validated.
+I<ctx> that contains the raw public key.
 
 X509_STORE_CTX_set0_crls() sets a set of CRLs to use to aid certificate
 verification to I<sk>. These CRLs will only be used if CRL verification is

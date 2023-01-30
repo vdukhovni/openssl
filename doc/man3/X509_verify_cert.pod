@@ -60,7 +60,7 @@ Applications must interpret any return value <= 0 as an error.
 The X509_verify_rpk() function validates a raw public key based on parameters
 in I<ctx>. This behaves similar to X509_verify_cert(), except that the number
 of possible checks is significantly reduced. The raw public key is authenticated
-only via DANE TLSA records.
+only via DANE TLSA records. See L<SSL_CTX_dane_enable(3)>.
 
 The X509_STORE_CTX_verify() behaves like X509_verify_cert() except that its
 target certificate is the first element of the list of untrusted certificates

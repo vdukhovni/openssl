@@ -7278,14 +7278,20 @@ int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, int nid)
     if (dane == NULL)
         return 0;
 
+    /*
+     * In practice, the OSSL_RPK_MATCH constants
+     * match the DANETLS_MATCHING constants, but
+     * there's always a chance they may diverge
+     * as new values are added. So, do a translation
+     */
     switch (nid) {
-    case NID_undef:
+    case OSSL_RPK_MATCH_FULL:
         matching = DANETLS_MATCHING_FULL;
         break;
-    case NID_sha256:
+    case OSSL_RPK_MATCH_SHA256:
         matching = DANETLS_MATCHING_2256;
         break;
-    case NID_sha512:
+    case OSSL_RPK_MATCH_SHA512:
         matching = DANETLS_MATCHING_2512;
         break;
     default:
@@ -7298,7 +7304,9 @@ int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, int nid)
     len = i2dlen = (size_t)ret;
     data = i2dbuf;
 
-    if ((md = dane->dctx->mdevp[matching]) != NULL) {
+    if (matching != DANETLS_MATCHING_FULL) {
+        if ((md = dane->dctx->mdevp[matching]) == NULL)
+            goto err;
         if (!EVP_Digest(i2dbuf, i2dlen, dgstbuf, &dgstlen, md, 0))
             goto err;
         data = dgstbuf;
