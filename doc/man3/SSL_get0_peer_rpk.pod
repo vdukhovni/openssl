@@ -23,11 +23,11 @@ SSL_SESSION_get0_peer_rpk - raw public key (RFC7250) support
 SSL_add_expected_rpk() adds public key B<rpk> into the SSL B<s>'s DANE TLSA database.
 The B<nid> argument specifies the hash method to use.
 
-SSL_get_negotiated_client_cert_type() returns the connection's negotiated client certificate
-type.
+SSL_get_negotiated_client_cert_type() returns the connection's negotiated
+client certificate type.
 
-SSL_get_negotiated_server_cert_type() returns the connection's negotiated server certificate
-type.
+SSL_get_negotiated_server_cert_type() returns the connection's negotiated
+server certificate type.
 
 SSL_get0_peer_rpk() returns the peer's raw public key from SSL B<s>.
 
@@ -37,8 +37,9 @@ SSL_SESSION B<ss> in the case of resumption.
 =head1 NOTES
 
 Raw public keys are used in place of certificates when the option is
-negotiated. Adding more than one key is possible to allow for key rotation,
-where a peer might be expected to offer an "old" or "new" key and the endpoint
+negotiated.
+Adding more than one key is possible to allow for key rotation, where a
+peer might be expected to offer an "old" or "new" key and the endpoint
 must be able to accept either one.
 
 When raw public keys are used, the certificate verify callback is called, and
