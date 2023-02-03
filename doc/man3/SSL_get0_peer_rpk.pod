@@ -45,7 +45,7 @@ must be able to accept either one.
 When raw public keys are used, the certificate verify callback is called, and
 may be used to inspect the public key via X509_STORE_CTX_get0_rpk(3).
 Raw public keys have no subject, issuer, validity dates nor digital signature
-to verify. They can, however, be matched verbatum of by their digest value, this
+to verify. They can, however, be matched verbatim of by their digest value, this
 is done by specifying one or more TLA records, see L<SSL_CTX_dane_enable(3)>.
 
 The raw public key is normally taken from the certificate assigned to the
