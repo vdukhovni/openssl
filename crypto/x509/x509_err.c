@@ -61,8 +61,6 @@ static const ERR_STRING_DATA X509_str_reasons[] = {
     "no cert set for us to verify"},
     {ERR_PACK(ERR_LIB_X509, 0, X509_R_NO_CRL_FOUND), "no crl found"},
     {ERR_PACK(ERR_LIB_X509, 0, X509_R_NO_CRL_NUMBER), "no crl number"},
-    {ERR_PACK(ERR_LIB_X509, 0, X509_R_NO_RPK_SET_FOR_US_TO_VERIFY),
-    "no rpk set for us to verify"},
     {ERR_PACK(ERR_LIB_X509, 0, X509_R_PUBLIC_KEY_DECODE_ERROR),
     "public key decode error"},
     {ERR_PACK(ERR_LIB_X509, 0, X509_R_PUBLIC_KEY_ENCODE_ERROR),
