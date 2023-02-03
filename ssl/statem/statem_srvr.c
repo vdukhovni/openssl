@@ -3543,10 +3543,19 @@ MSG_PROCESS_RETURN tls_process_client_rpk(SSL_CONNECTION *sc, PACKET *pkt)
         goto err;
     }
 
-    if (ssl_verify_rpk(sc, peer_rpk) <= 0) {
-        SSLfatal(sc, ssl_x509err2alert(sc->verify_result),
-                 SSL_R_CERTIFICATE_VERIFY_FAILED);
-        goto err;
+    if (peer_rpk == NULL) {
+        if ((sc->verify_mode & SSL_VERIFY_FAIL_IF_NO_PEER_CERT)
+                && (sc->verify_mode & SSL_VERIFY_PEER)) {
+            SSLfatal(sc, SSL_AD_CERTIFICATE_REQUIRED,
+                     SSL_R_PEER_DID_NOT_RETURN_A_CERTIFICATE);
+            goto err;
+        }
+    } else {
+        if (ssl_verify_rpk(sc, peer_rpk) <= 0) {
+            SSLfatal(sc, ssl_x509err2alert(sc->verify_result),
+                     SSL_R_CERTIFICATE_VERIFY_FAILED);
+            goto err;
+        }
     }
 
     /*
