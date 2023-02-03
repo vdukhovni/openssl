@@ -39,8 +39,8 @@ certificate type extension.
 =head1 NOTES
 
 The certificate type extensions are used to negotiate the certificate type to be
-used in the handshake. These extentions let each side
-know what its peer is able to accept.
+used in the handshake.
+These extensions let each side know what its peer is able to accept.
 
 The client certificate type is sent from the client to the server to indicate what
 certificate types the client accepts. Values are configured in preference order.

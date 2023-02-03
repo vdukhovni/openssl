@@ -33,7 +33,7 @@ X509_STORE_CTX_purpose_inherit
  int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *trust_store,
                          X509 *target, STACK_OF(X509) *untrusted);
  int X509_STORE_CTX_init_rpk(X509_STORE_CTX *ctx, X509_STORE *trust_store,
-                         EVP_PKEY *rpk);
+                             EVP_PKEY *rpk);
 
  void X509_STORE_CTX_set0_trusted_stack(X509_STORE_CTX *ctx, STACK_OF(X509) *sk);
 
