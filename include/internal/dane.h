@@ -12,33 +12,7 @@
 # pragma once
 
 # include <openssl/safestack.h>
-
-/*-
- * Certificate usages:
- * https://tools.ietf.org/html/rfc6698#section-2.1.1
- */
-#define DANETLS_USAGE_PKIX_TA   0
-#define DANETLS_USAGE_PKIX_EE   1
-#define DANETLS_USAGE_DANE_TA   2
-#define DANETLS_USAGE_DANE_EE   3
-#define DANETLS_USAGE_LAST      DANETLS_USAGE_DANE_EE
-
-/*-
- * Selectors:
- * https://tools.ietf.org/html/rfc6698#section-2.1.2
- */
-#define DANETLS_SELECTOR_CERT   0
-#define DANETLS_SELECTOR_SPKI   1
-#define DANETLS_SELECTOR_LAST   DANETLS_SELECTOR_SPKI
-
-/*-
- * Matching types:
- * https://tools.ietf.org/html/rfc6698#section-2.1.3
- */
-#define DANETLS_MATCHING_FULL   0
-#define DANETLS_MATCHING_2256   1
-#define DANETLS_MATCHING_2512   2
-#define DANETLS_MATCHING_LAST   DANETLS_MATCHING_2512
+# include <openssl/danetls.h>
 
 typedef struct danetls_record_st {
     uint8_t usage;

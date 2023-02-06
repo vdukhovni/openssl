@@ -43,6 +43,7 @@ use OpenSSL::stackhash qw(generate_stack_macros generate_const_stack_macros);
 # include <openssl/ct.h>
 # include <openssl/sslerr.h>
 # include <openssl/prov_ssl.h>
+# include <openssl/danetls.h>
 # ifndef OPENSSL_NO_STDIO
 #  include <stdio.h>
 # endif
@@ -2592,7 +2593,7 @@ size_t SSL_get1_compressed_cert(SSL *ssl, int alg, unsigned char **data, size_t 
 #define OSSL_RPK_MATCH_SHA256  1
 #define OSSL_RPK_MATCH_SHA512  2
 
-__owur int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, int nid);
+__owur int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, int mtype);
 __owur EVP_PKEY *SSL_get0_peer_rpk(const SSL *s);
 __owur EVP_PKEY *SSL_SESSION_get0_peer_rpk(SSL_SESSION *s);
 __owur int SSL_get_negotiated_client_cert_type(const SSL *s);
