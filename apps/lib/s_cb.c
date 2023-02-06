@@ -1244,7 +1244,7 @@ void print_ssl_summary(SSL *s)
             BIO_printf(bio_err, "Signature type: %s\n", get_sigtype(nid));
         print_verify_detail(s, bio_err);
     } else if (peer_rpk != NULL) {
-        BIO_printf(bio_err, "Server used raw public key\n");
+        BIO_printf(bio_err, "Peer used raw public key\n");
         if (SSL_get_peer_signature_type_nid(s, &nid))
             BIO_printf(bio_err, "Signature type: %s\n", get_sigtype(nid));
         print_verify_detail(s, bio_err);

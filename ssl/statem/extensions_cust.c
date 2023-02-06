@@ -193,6 +193,7 @@ int custom_ext_add(SSL_CONNECTION *s, int context, WPACKET *pkt, X509 *x,
                         | SSL_EXT_TLS1_3_SERVER_HELLO
                         | SSL_EXT_TLS1_3_ENCRYPTED_EXTENSIONS
                         | SSL_EXT_TLS1_3_CERTIFICATE
+                        | SSL_EXT_TLS1_3_RAW_PUBLIC_KEY
                         | SSL_EXT_TLS1_3_HELLO_RETRY_REQUEST)) != 0) {
             /* Only send extensions present in ClientHello/CertificateRequest */
             if (!(meth->ext_flags & SSL_EXT_FLAG_RECEIVED))
