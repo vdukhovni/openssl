@@ -2765,10 +2765,10 @@ static unsigned char *dane_i2d(X509 *cert, uint8_t selector,
      * Extract ASN.1 DER form of certificate or public key.
      */
     switch (selector) {
-    case DANETLS_SELECTOR_CERT:
+    case OSSL_DANETLS_SELECTOR_CERT:
         len = i2d_X509(cert, &buf);
         break;
-    case DANETLS_SELECTOR_SPKI:
+    case OSSL_DANETLS_SELECTOR_SPKI:
         len = i2d_X509_PUBKEY(X509_get_X509_PUBKEY(cert), &buf);
         break;
     default:
@@ -2872,7 +2872,7 @@ static int dane_match_cert(X509_STORE_CTX *ctx, X509 *cert, int depth)
             /* Reset digest agility for each usage/selector pair */
             mtype = DANETLS_NONE;
             ordinal = dane->dctx->mdord[t->mtype];
-        } else if (t->mtype != DANETLS_MATCHING_FULL) {
+        } else if (t->mtype != OSSL_DANETLS_MATCHING_FULL) {
             /*-
              * Digest agility:
              *
@@ -2967,9 +2967,9 @@ static int check_dane_pkeys(X509_STORE_CTX *ctx)
 
     for (i = 0; i < recnum; ++i) {
         t = sk_danetls_record_value(dane->trecs, i);
-        if (t->usage != DANETLS_USAGE_DANE_TA ||
-            t->selector != DANETLS_SELECTOR_SPKI ||
-            t->mtype != DANETLS_MATCHING_FULL ||
+        if (t->usage != OSSL_DANETLS_USAGE_DANE_TA ||
+            t->selector != OSSL_DANETLS_SELECTOR_SPKI ||
+            t->mtype != OSSL_DANETLS_MATCHING_FULL ||
             X509_verify(cert, t->spki) <= 0)
             continue;
 
@@ -3001,7 +3001,7 @@ static int dane_match_rpk(X509_STORE_CTX *ctx, EVP_PKEY *rpk)
 {
     SSL_DANE *dane = ctx->dane;
     danetls_record *t = NULL;
-    int mtype = DANETLS_MATCHING_FULL;
+    int mtype = OSSL_DANETLS_MATCHING_FULL;
     unsigned char *i2dbuf = NULL;
     unsigned int i2dlen = 0;
     unsigned char mdbuf[EVP_MAX_MD_SIZE];
@@ -3020,7 +3020,7 @@ static int dane_match_rpk(X509_STORE_CTX *ctx, EVP_PKEY *rpk)
 
     for (i = 0; i < recnum; i++) {
         t = sk_danetls_record_value(dane->trecs, i);
-        if (t->usage != DANETLS_USAGE_DANE_EE || t->selector != DANETLS_SELECTOR_SPKI)
+        if (t->usage != OSSL_DANETLS_USAGE_DANE_EE || t->selector != OSSL_DANETLS_SELECTOR_SPKI)
             continue;
 
         /* Calculate hash - keep only one around */

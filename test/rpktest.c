@@ -270,17 +270,17 @@ static int test_rpk(int idx)
             goto end;
         break;
     case 0:
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
         break;
     case 1:
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
         break;
     case 2:
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
-        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
         /* Use the same key for client auth */
         if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))
@@ -293,33 +293,33 @@ static int test_rpk(int idx)
         client_auth = 1;
         break;
     case 3:
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, root_pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, root_pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
         break;
     case 4:
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, other_pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, other_pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
         break;
     case 5:
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, root_pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, root_pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
         break;
     case 6:
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, other_pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, other_pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
         break;
     case 7:
         if (idx_server_server_rpk == 1 && idx_client_server_rpk == 1)
             client_expected = -1;
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, other_pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, other_pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
         client_verify_result = X509_V_ERR_DANE_NO_MATCH;
         break;
@@ -334,9 +334,9 @@ static int test_rpk(int idx)
             testresult = TEST_skip("PHA requires TLSv1.3");
             goto end;
         }
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
-        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
         /* Use the same key for client auth */
         if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))
@@ -350,9 +350,9 @@ static int test_rpk(int idx)
         client_auth = 1;
         break;
     case 10:
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
-        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
         /* Use the same key for client auth */
         if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))
@@ -368,7 +368,7 @@ static int test_rpk(int idx)
             testresult = TEST_skip("Only testing resumption with server RPK");
             goto end;
         }
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
         resumption = 1;
         break;
@@ -377,7 +377,7 @@ static int test_rpk(int idx)
             testresult = TEST_skip("Only testing resumption with server RPK");
             goto end;
         }
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
         SSL_set_options(serverssl, SSL_OP_NO_TICKET);
         SSL_set_options(clientssl, SSL_OP_NO_TICKET);
@@ -392,9 +392,9 @@ static int test_rpk(int idx)
             testresult = TEST_skip("Only testing client authentication resumption with client RPK");
             goto end;
         }
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
-        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
         /* Use the same key for client auth */
         if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))
@@ -416,9 +416,9 @@ static int test_rpk(int idx)
             testresult = TEST_skip("Only testing client authentication resumption with client RPK");
             goto end;
         }
-        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
-        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, DANETLS_MATCHING_FULL)))
+        if (!TEST_true(SSL_add_expected_rpk(serverssl, pkey, OSSL_DANETLS_MATCHING_FULL)))
             goto end;
         /* Use the same key for client auth */
         if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))
@@ -533,19 +533,19 @@ static int test_rpk(int idx)
         default:
             break;
         case 11:
-            if (!TEST_true(SSL_add_expected_rpk(clientssl, client_pkey, DANETLS_MATCHING_FULL)))
+            if (!TEST_true(SSL_add_expected_rpk(clientssl, client_pkey, OSSL_DANETLS_MATCHING_FULL)))
                 goto end;
             break;
         case 12:
-            if (!TEST_true(SSL_add_expected_rpk(clientssl, client_pkey, DANETLS_MATCHING_FULL)))
+            if (!TEST_true(SSL_add_expected_rpk(clientssl, client_pkey, OSSL_DANETLS_MATCHING_FULL)))
                 goto end;
             SSL_set_options(clientssl, SSL_OP_NO_TICKET);
             SSL_set_options(serverssl, SSL_OP_NO_TICKET);
             break;
         case 13:
-            if (!TEST_true(SSL_add_expected_rpk(clientssl, client_pkey, DANETLS_MATCHING_FULL)))
+            if (!TEST_true(SSL_add_expected_rpk(clientssl, client_pkey, OSSL_DANETLS_MATCHING_FULL)))
                 goto end;
-            if (!TEST_true(SSL_add_expected_rpk(serverssl, server_pkey, DANETLS_MATCHING_FULL)))
+            if (!TEST_true(SSL_add_expected_rpk(serverssl, server_pkey, OSSL_DANETLS_MATCHING_FULL)))
                 goto end;
             /* Use the same key for client auth */
             if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))
@@ -557,9 +557,9 @@ static int test_rpk(int idx)
             SSL_set_verify(serverssl, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, rpk_verify_server_cb);
             break;
         case 14:
-            if (!TEST_true(SSL_add_expected_rpk(clientssl, client_pkey, DANETLS_MATCHING_FULL)))
+            if (!TEST_true(SSL_add_expected_rpk(clientssl, client_pkey, OSSL_DANETLS_MATCHING_FULL)))
                 goto end;
-            if (!TEST_true(SSL_add_expected_rpk(serverssl, server_pkey, DANETLS_MATCHING_FULL)))
+            if (!TEST_true(SSL_add_expected_rpk(serverssl, server_pkey, OSSL_DANETLS_MATCHING_FULL)))
                 goto end;
             /* Use the same key for client auth */
             if (!TEST_int_eq(SSL_use_PrivateKey_file(clientssl, privkey_file, SSL_FILETYPE_PEM), 1))

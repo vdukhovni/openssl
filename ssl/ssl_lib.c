@@ -93,13 +93,13 @@ static const struct {
     int nid;
 } dane_mds[] = {
     {
-        DANETLS_MATCHING_FULL, 0, NID_undef
+        OSSL_DANETLS_MATCHING_FULL, 0, NID_undef
     },
     {
-        DANETLS_MATCHING_2256, 1, NID_sha256
+        OSSL_DANETLS_MATCHING_2256, 1, NID_sha256
     },
     {
-        DANETLS_MATCHING_2512, 2, NID_sha512
+        OSSL_DANETLS_MATCHING_2512, 2, NID_sha512
     },
 };
 
@@ -107,7 +107,7 @@ static int dane_ctx_enable(struct dane_ctx_st *dctx)
 {
     const EVP_MD **mdevp;
     uint8_t *mdord;
-    uint8_t mdmax = DANETLS_MATCHING_LAST;
+    uint8_t mdmax = OSSL_DANETLS_MATCHING_LAST;
     int n = ((int)mdmax) + 1;   /* int to handle PrivMatch(255) */
     size_t i;
 
@@ -212,7 +212,7 @@ static int dane_mtype_set(struct dane_ctx_st *dctx,
 {
     int i;
 
-    if (mtype == DANETLS_MATCHING_FULL && md != NULL) {
+    if (mtype == OSSL_DANETLS_MATCHING_FULL && md != NULL) {
         ERR_raise(ERR_LIB_SSL, SSL_R_DANE_CANNOT_OVERRIDE_MTYPE_FULL);
         return 0;
     }
@@ -276,17 +276,17 @@ static int dane_tlsa_add(SSL_DANE *dane,
         return 0;
     }
 
-    if (usage > DANETLS_USAGE_LAST) {
+    if (usage > OSSL_DANETLS_USAGE_LAST) {
         ERR_raise(ERR_LIB_SSL, SSL_R_DANE_TLSA_BAD_CERTIFICATE_USAGE);
         return 0;
     }
 
-    if (selector > DANETLS_SELECTOR_LAST) {
+    if (selector > OSSL_DANETLS_SELECTOR_LAST) {
         ERR_raise(ERR_LIB_SSL, SSL_R_DANE_TLSA_BAD_SELECTOR);
         return 0;
     }
 
-    if (mtype != DANETLS_MATCHING_FULL) {
+    if (mtype != OSSL_DANETLS_MATCHING_FULL) {
         md = tlsa_md_get(dane, mtype);
         if (md == NULL) {
             ERR_raise(ERR_LIB_SSL, SSL_R_DANE_TLSA_BAD_MATCHING_TYPE);
@@ -318,13 +318,13 @@ static int dane_tlsa_add(SSL_DANE *dane,
     t->dlen = dlen;
 
     /* Validate and cache full certificate or public key */
-    if (mtype == DANETLS_MATCHING_FULL) {
+    if (mtype == OSSL_DANETLS_MATCHING_FULL) {
         const unsigned char *p = data;
         X509 *cert = NULL;
         EVP_PKEY *pkey = NULL;
 
         switch (selector) {
-        case DANETLS_SELECTOR_CERT:
+        case OSSL_DANETLS_SELECTOR_CERT:
             if (!d2i_X509(&cert, &p, ilen) || p < data ||
                 dlen != (size_t)(p - data)) {
                 tlsa_free(t);
@@ -359,7 +359,7 @@ static int dane_tlsa_add(SSL_DANE *dane,
             }
             break;
 
-        case DANETLS_SELECTOR_SPKI:
+        case OSSL_DANETLS_SELECTOR_SPKI:
             if (!d2i_PUBKEY(&pkey, &p, ilen) || p < data ||
                 dlen != (size_t)(p - data)) {
                 tlsa_free(t);
@@ -372,7 +372,7 @@ static int dane_tlsa_add(SSL_DANE *dane,
              * records that contain full bare keys of trust-anchors that are
              * not present in the wire chain.
              */
-            if (usage == DANETLS_USAGE_DANE_TA)
+            if (usage == OSSL_DANETLS_USAGE_DANE_TA)
                 t->spki = pkey;
             else
                 EVP_PKEY_free(pkey);
@@ -6145,8 +6145,8 @@ int ssl_validate_ct(SSL_CONNECTION *s)
      */
     if (DANETLS_ENABLED(dane) && dane->mtlsa != NULL) {
         switch (dane->mtlsa->usage) {
-        case DANETLS_USAGE_DANE_TA:
-        case DANETLS_USAGE_DANE_EE:
+        case OSSL_DANETLS_USAGE_DANE_TA:
+        case OSSL_DANETLS_USAGE_DANE_EE:
             return 1;
         }
     }
@@ -7261,7 +7261,7 @@ int SSL_stream_conclude(SSL *ssl, uint64_t flags)
 #endif
 }
 
-int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, int mtype)
+int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, uint8_t mtype)
 {
     unsigned char *i2dbuf = NULL;
     SSL_DANE *dane = SSL_get0_dane(s);
@@ -7274,17 +7274,8 @@ int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, int mtype)
     const EVP_MD *md = NULL;
     int ok = 0;
 
-    if (dane == NULL)
+    if (dane == NULL || dane->dctx == NULL || mtype > dane->dctx->mdmax)
         return 0;
-
-    switch (mtype) {
-    case DANETLS_MATCHING_FULL:
-    case DANETLS_MATCHING_2256:
-    case DANETLS_MATCHING_2512:
-        break;
-    default:
-        goto err;
-    }
 
     if ((ret = i2d_PUBKEY(rpk, &i2dbuf)) <= 0)
         goto err;
@@ -7292,7 +7283,7 @@ int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, int mtype)
     len = i2dlen = (size_t)ret;
     data = i2dbuf;
 
-    if (mtype != DANETLS_MATCHING_FULL) {
+    if (mtype != OSSL_DANETLS_MATCHING_FULL) {
         if ((md = dane->dctx->mdevp[mtype]) == NULL)
             goto err;
         if (!EVP_Digest(i2dbuf, i2dlen, dgstbuf, &dgstlen, md, 0))
@@ -7301,8 +7292,8 @@ int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, int mtype)
         len = (size_t)dgstlen;
     }
 
-    if (SSL_dane_tlsa_add(s, DANETLS_USAGE_DANE_EE,
-                          DANETLS_SELECTOR_SPKI,
+    if (SSL_dane_tlsa_add(s, OSSL_DANETLS_USAGE_DANE_EE,
+                          OSSL_DANETLS_SELECTOR_SPKI,
                           mtype,
                           data, len) <= 0)
         goto err;
