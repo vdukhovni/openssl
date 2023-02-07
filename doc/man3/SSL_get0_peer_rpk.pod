@@ -59,15 +59,15 @@ The B<nid> argument to SSL_add_expected_rpk() may be one of the following:
 
 =over 4
 
-=item OSSL_RPK_MATCH_FULL
+=item DANETLS_MATCHING_FULL
 
 Use the full value DER value of the public keys for comparison (i.e. no hash).
 
-=item OSSL_RPK_MATCH_SHA256
+=item DANETLS_MATCHING_2256
 
 Use the SHA256 hash of the public keys for comparison.
 
-=item OSSL_RPK_MATCH_SHA512
+=item DANETLS_MATCHING_2512
 
 Use the SHA512 hash of the public keys for comparison.
 
