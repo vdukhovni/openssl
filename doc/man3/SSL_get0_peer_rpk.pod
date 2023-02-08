@@ -12,7 +12,7 @@ SSL_SESSION_get0_peer_rpk - raw public key (RFC7250) support
 
  #include <openssl/ssl.h>
 
- int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, int nid);
+ int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, uint8_t mtype);
  int SSL_get_negotiated_client_cert_type(const SSL *s);
  int SSL_get_negotiated_server_cert_type(const SSL *s);
  EVP_PKEY *SSL_get0_peer_rpk(const SSL *s);
@@ -21,7 +21,7 @@ SSL_SESSION_get0_peer_rpk - raw public key (RFC7250) support
 =head1 DESCRIPTION
 
 SSL_add_expected_rpk() adds public key B<rpk> into the SSL B<s>'s DANE TLSA database.
-The B<nid> argument specifies the hash method to use.
+The B<mtype> argument specifies the hash method to use.
 
 SSL_get_negotiated_client_cert_type() returns the connection's negotiated
 client certificate type.
@@ -55,7 +55,7 @@ private key.
 
 The SSL_add_expected_rpk() function is a wrapper around L<SSL_dane_tlsa_add(3)>. If DANE
 is enabled, the TLSA database will be used to match a raw public key.
-The B<nid> argument to SSL_add_expected_rpk() may be one of the following:
+The B<mtype> argument to SSL_add_expected_rpk() may be one of the following:
 
 =over 4
 
