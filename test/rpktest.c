@@ -86,12 +86,13 @@ static int rpk_verify_server_cb(int ok, X509_STORE_CTX *ctx)
  * idx = 12 - simple resumption, no ticket
  * idx = 13 - resumption with client authentication
  * idx = 14 - resumption with client authentication, no ticket
+ * idx = 15 - normal case, but use SHA256 vs FULL match
  *
- * 14 * 2 * 4 * 2 * 2 * 2 * 2 = 1920 tests
+ * 16 * 2 * 4 * 2 * 2 * 2 * 2 = 2048 tests
  */
 static int test_rpk(int idx)
 {
-# define RPK_TESTS 15
+# define RPK_TESTS 16
 # define RPK_DIMS (2 * 4 * 2 * 2 * 2 * 2)
     SSL_CTX *cctx = NULL, *sctx = NULL;
     SSL *clientssl = NULL, *serverssl = NULL;
@@ -433,6 +434,10 @@ static int test_rpk(int idx)
         client_auth = 1;
         resumption = 1;
         break;
+    case 15:
+        if (!TEST_true(SSL_add_expected_rpk(clientssl, pkey, OSSL_DANETLS_MATCHING_2256)))
+            goto end;
+        break;
     }
 
     ret = create_ssl_connection(serverssl, clientssl, SSL_ERROR_NONE);
@@ -622,6 +627,52 @@ static int test_rpk(int idx)
     return testresult;
 }
 
+static int test_rpk_api(void)
+{
+    int ret = 0;
+    SSL_CTX *cctx = NULL, *sctx = NULL;
+    unsigned char cert_type_dups[] = { TLSEXT_cert_type_rpk,
+                                       TLSEXT_cert_type_x509,
+                                       TLSEXT_cert_type_x509 };
+    unsigned char cert_type_bad[] = { 0xFF };
+    unsigned char cert_type_extra[] = { TLSEXT_cert_type_rpk,
+                                        TLSEXT_cert_type_x509,
+                                        0xFF };
+    unsigned char cert_type_unsup[] = { TLSEXT_cert_type_pgp,
+                                        TLSEXT_cert_type_1609dot2 };
+    unsigned char cert_type_just_x509[] = { TLSEXT_cert_type_x509 };
+    unsigned char cert_type_just_rpk[] = { TLSEXT_cert_type_rpk };
+
+    if (!TEST_true(create_ssl_ctx_pair(NULL,
+                                       TLS_server_method(), TLS_client_method(),
+                                       TLS1_2_VERSION, TLS1_2_VERSION,
+                                       &sctx, &cctx, NULL, NULL)))
+        goto end;
+
+    if (!TEST_false(SSL_CTX_set1_server_cert_type(sctx, cert_type_dups, sizeof(cert_type_dups))))
+        goto end;
+
+    if (!TEST_false(SSL_CTX_set1_server_cert_type(sctx, cert_type_bad, sizeof(cert_type_bad))))
+        goto end;
+
+    if (!TEST_false(SSL_CTX_set1_server_cert_type(sctx, cert_type_extra, sizeof(cert_type_extra))))
+        goto end;
+
+    if (!TEST_false(SSL_CTX_set1_server_cert_type(sctx, cert_type_unsup, sizeof(cert_type_unsup))))
+        goto end;
+
+    if (!TEST_true(SSL_CTX_set1_server_cert_type(sctx, cert_type_just_x509, sizeof(cert_type_just_x509))))
+        goto end;
+
+    if (!TEST_true(SSL_CTX_set1_server_cert_type(sctx, cert_type_just_rpk, sizeof(cert_type_just_rpk))))
+        goto end;
+
+    ret = 1;
+ end:
+    SSL_CTX_free(sctx);
+    SSL_CTX_free(cctx);
+    return ret;
+}
 OPT_TEST_DECLARE_USAGE("certdir\n")
 
 int setup_tests(void)
@@ -670,6 +721,7 @@ int setup_tests(void)
     if (privkey2 == NULL)
         goto err;
 
+    ADD_TEST(test_rpk_api);
     ADD_ALL_TESTS(test_rpk, RPK_TESTS * RPK_DIMS);
     return 1;
 

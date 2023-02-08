@@ -2049,11 +2049,6 @@ int tls_parse_stoc_client_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
         SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
         return 0;
     }
-    /* TODO: This check may not be needed given the last check */
-    if (type != TLSEXT_cert_type_x509 && type != TLSEXT_cert_type_rpk) {
-        SSLfatal(sc, SSL_AD_UNSUPPORTED_CERTIFICATE, SSL_R_BAD_VALUE);
-        return 0;
-    }
     /* We did not send/ask for this */
     if (!sc->ext.client_cert_type_ctos) {
         SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
@@ -2104,11 +2099,6 @@ int tls_parse_stoc_server_cert_type(SSL_CONNECTION *sc, PACKET *pkt,
     }
     if (!PACKET_get_1(pkt, &type)) {
         SSLfatal(sc, SSL_AD_DECODE_ERROR, SSL_R_BAD_EXTENSION);
-        return 0;
-    }
-    /* TODO: This check may not be needed given the last check */
-    if (type != TLSEXT_cert_type_x509 && type != TLSEXT_cert_type_rpk) {
-        SSLfatal(sc, SSL_AD_UNSUPPORTED_CERTIFICATE, SSL_R_BAD_VALUE);
         return 0;
     }
     /* We did not send/ask for this */
