@@ -303,7 +303,7 @@ static int x509_verify_rpk(X509_STORE_CTX *ctx)
 
     /* If the peer's public key is too weak, we can stop early. */
     if (!check_key_level(ctx, ctx->rpk)
-        && verify_cb_cert(ctx, NULL, 0, X509_V_ERR_EE_KEY_TOO_SMALL))
+        && verify_cb_cert(ctx, NULL, 0, X509_V_ERR_EE_KEY_TOO_SMALL) == 0)
         return 0;
 
     /* Barring any data to verify the RPK, simply report it as untrusted */

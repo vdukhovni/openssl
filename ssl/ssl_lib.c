@@ -880,13 +880,15 @@ SSL *ossl_ssl_connection_new_int(SSL_CTX *ctx, const SSL_METHOD *method)
     memcpy(s->cert_comp_prefs, ctx->cert_comp_prefs, sizeof(s->cert_comp_prefs));
 #endif
     if (ctx->client_cert_type != NULL) {
-        s->client_cert_type = OPENSSL_memdup(ctx->client_cert_type, ctx->client_cert_type_len);
+        s->client_cert_type = OPENSSL_memdup(ctx->client_cert_type,
+                                             ctx->client_cert_type_len);
         if (s->client_cert_type == NULL)
             goto sslerr;
         s->client_cert_type_len = ctx->client_cert_type_len;
     }
     if (ctx->server_cert_type != NULL) {
-        s->server_cert_type = OPENSSL_memdup(ctx->server_cert_type, ctx->server_cert_type_len);
+        s->server_cert_type = OPENSSL_memdup(ctx->server_cert_type,
+                                             ctx->server_cert_type_len);
         if (s->server_cert_type == NULL)
             goto sslerr;
         s->server_cert_type_len = ctx->server_cert_type_len;
@@ -4257,7 +4259,8 @@ void ssl_set_masks(SSL_CONNECTION *s)
         mask_a |= SSL_aDSS;
     if (tls12_rpk_and_privkey(s, SSL_PKEY_ECC))
         mask_a |= SSL_aECDSA;
-    if (tls12_rpk_and_privkey(s, SSL_PKEY_ED25519) || tls12_rpk_and_privkey(s, SSL_PKEY_ED448)) {
+    if (tls12_rpk_and_privkey(s, SSL_PKEY_ED25519)
+        || tls12_rpk_and_privkey(s, SSL_PKEY_ED448)) {
         if (TLS1_get_version(&s->ssl) == TLS1_2_VERSION)
             mask_a |= SSL_aECDSA;
     }
@@ -4266,7 +4269,8 @@ void ssl_set_masks(SSL_CONNECTION *s)
         mask_k |= SSL_kGOST;
         mask_a |= SSL_aGOST01;
     }
-    if (tls12_rpk_and_privkey(s, SSL_PKEY_GOST12_256) || tls12_rpk_and_privkey(s, SSL_PKEY_GOST12_512)) {
+    if (tls12_rpk_and_privkey(s, SSL_PKEY_GOST12_256)
+        || tls12_rpk_and_privkey(s, SSL_PKEY_GOST12_512)) {
         mask_k |= SSL_kGOST | SSL_kGOST18;
         mask_a |= SSL_aGOST12;
     }
