@@ -989,8 +989,13 @@ The
 The B<-srpvfile>, B<-srpuserseed>, and B<-engine>
 option were deprecated in OpenSSL 3.0.
 
-The B<-tfo>, B<-no_tx_cert_comp>, and B<-no_rx_cert_comp> options were added
-in OpenSSL 3.2.
+The
+B<-enable_client_rpk>,
+B<-enable_server_rpk>,
+B<-no_rx_cert_comp>,
+B<-no_tx_cert_comp>,
+and B<-tfo>
+options were added in OpenSSL 3.2.
 
 =head1 COPYRIGHT
 

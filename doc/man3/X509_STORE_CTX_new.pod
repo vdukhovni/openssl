@@ -306,7 +306,8 @@ L<X509_VERIFY_PARAM_set_flags(3)>
 The X509_STORE_CTX_set0_crls() function was added in OpenSSL 1.0.0.
 The X509_STORE_CTX_get_num_untrusted() function was added in OpenSSL 1.1.0.
 The X509_STORE_CTX_new_ex() function was added in OpenSSL 3.0.
-The X509_STORE_CTX_init_rpk() function was added in OpenSSL 3.2.
+The X509_STORE_CTX_init_rpk(), X509_STORE_CTX_get0_rpk(), and
+X509_STORE_CTX_set0_rpk() functions were added in OpenSSL 3.2.
 
 There is no need to call X509_STORE_CTX_cleanup() explicitly since OpenSSL 3.0.
 

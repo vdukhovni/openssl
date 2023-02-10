@@ -21,7 +21,7 @@ SSL_SESSION_get0_peer_rpk - raw public key (RFC7250) support
 =head1 DESCRIPTION
 
 SSL_add_expected_rpk() adds public key B<rpk> into the SSL B<s>'s DANE TLSA database.
-The B<mtype> argument specifies the hash method to use.
+The B<mtype> argument specifies the matching method to use.
 
 SSL_get_negotiated_client_cert_type() returns the connection's negotiated
 client certificate type.
@@ -38,18 +38,19 @@ SSL_SESSION B<ss> in the case of resumption.
 
 Raw public keys are used in place of certificates when the option is
 negotiated.
-Adding more than one key is possible to allow for key rotation, where a
-peer might be expected to offer an "old" or "new" key and the endpoint
-must be able to accept either one.
+B<SSL_add_expected_rpk()> may be called multiple times to configure
+multiple trusted keys, this makes it possible to allow for key rotation,
+where a peer might be expected to offer an "old" or "new" key and the
+endpoint must be able to accept either one.
 
 When raw public keys are used, the certificate verify callback is called, and
 may be used to inspect the public key via X509_STORE_CTX_get0_rpk(3).
 Raw public keys have no subject, issuer, validity dates nor digital signature
 to verify. They can, however, be matched verbatim or by their digest value, this
-is done by specifying one or more TLA records, see L<SSL_CTX_dane_enable(3)>.
+is done by specifying one or more TLSA records, see L<SSL_CTX_dane_enable(3)>.
 
-The raw public key is normally taken from the certificate assigned to the
-connection (e.g. via SSL_use_certificate()), but if a certificate is not
+The raw public key is typically taken from the certificate assigned to the
+connection (e.g. via L<SSL_use_certificate(3)>), but if a certificate is not
 configured, then the public key will be extracted from the assigned
 private key.
 
