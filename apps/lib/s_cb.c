@@ -1172,7 +1172,6 @@ static char *hexencode(const unsigned char *data, size_t len)
 void print_verify_detail(SSL *s, BIO *bio)
 {
     int mdpth;
-    X509 *mcert = NULL;
     EVP_PKEY *mspki = NULL;
     long verify_err = SSL_get_verify_result(s);
 
@@ -1188,7 +1187,7 @@ void print_verify_detail(SSL *s, BIO *bio)
         BIO_printf(bio, "Verification error: %s\n", reason);
     }
 
-    if ((mdpth = SSL_get0_dane_authority(s, &mcert, &mspki)) >= 0) {
+    if ((mdpth = SSL_get0_dane_authority(s, NULL, &mspki)) >= 0) {
         uint8_t usage, selector, mtype;
         const unsigned char *data = NULL;
         size_t dlen = 0;
@@ -1208,15 +1207,15 @@ void print_verify_detail(SSL *s, BIO *bio)
             hexdata = hexencode(data + dlen - TLSA_TAIL_SIZE, TLSA_TAIL_SIZE);
         else
             hexdata = hexencode(data, dlen);
-        BIO_printf(bio, "DANE TLSA %d %d %d %s%s matched %s",
+        BIO_printf(bio, "DANE TLSA %d %d %d %s%s ",
                    usage, selector, mtype,
-                   (dlen > TLSA_TAIL_SIZE) ? "..." : "", hexdata,
-                   (mspki != NULL) ? "signed the certificate" :
-                   mdpth ? "TA" : "EE");
-        if (mcert != NULL)
-            BIO_printf(bio, " certificate at depth %d\n", mdpth);
+                   (dlen > TLSA_TAIL_SIZE) ? "..." : "", hexdata);
+        if (SSL_get0_peer_rpk(s) == NULL)
+            BIO_printf(bio, "%s certificate at depth %d\n",
+                       (mspki != NULL) ? "signed the peer" :
+                       mdpth ? "matched the TA" : "matched the EE", mdpth);
         else
-            BIO_printf(bio, " raw public key\n");
+            BIO_printf(bio, "matched the peer raw public key\n");
         OPENSSL_free(hexdata);
     }
 }
