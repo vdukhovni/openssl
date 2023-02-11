@@ -12,7 +12,7 @@ SSL_SESSION_get0_peer_rpk - raw public key (RFC7250) support
 
  #include <openssl/ssl.h>
 
- int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, uint8_t mtype);
+ int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk);
  int SSL_get_negotiated_client_cert_type(const SSL *s);
  int SSL_get_negotiated_server_cert_type(const SSL *s);
  EVP_PKEY *SSL_get0_peer_rpk(const SSL *s);
@@ -20,8 +20,8 @@ SSL_SESSION_get0_peer_rpk - raw public key (RFC7250) support
 
 =head1 DESCRIPTION
 
-SSL_add_expected_rpk() adds public key B<rpk> into the SSL B<s>'s DANE TLSA database.
-The B<mtype> argument specifies the matching method to use.
+SSL_add_expected_rpk() adds a DANE TLSA record matching public key B<rpk>
+to SSL B<s>'s DANE validation policy.
 
 SSL_get_negotiated_client_cert_type() returns the connection's negotiated
 client certificate type.
@@ -54,25 +54,10 @@ connection (e.g. via L<SSL_use_certificate(3)>), but if a certificate is not
 configured, then the public key will be extracted from the assigned
 private key.
 
-The SSL_add_expected_rpk() function is a wrapper around L<SSL_dane_tlsa_add(3)>. If DANE
-is enabled, the TLSA database will be used to match a raw public key.
-The B<mtype> argument to SSL_add_expected_rpk() may be one of the following:
-
-=over 4
-
-=item DANETLS_MATCHING_FULL
-
-Use the full value DER value of the public keys for comparison (i.e. no hash).
-
-=item DANETLS_MATCHING_2256
-
-Use the SHA256 hash of the public keys for comparison.
-
-=item DANETLS_MATCHING_2512
-
-Use the SHA512 hash of the public keys for comparison.
-
-=back
+The SSL_add_expected_rpk() function is a wrapper around
+L<SSL_dane_tlsa_add(3)>.
+When DANE is enabled, the configured TLSA records will be used to validate the
+peer's public key or certificate.
 
 =head1 RETURN VALUES
 

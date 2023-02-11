@@ -168,7 +168,7 @@ To connect to this server, set the client SSL_CTX and SSL as follows:
      /* error */
  if (!SSL_set1_server_cert_type(ssl, cert_type, sizeof(cert_type)))
      /* error */
- if (!SSL_add_expected_rpk(ssl, rpk, OSSL_DANETLS_MATCHING_FULL))
+ if (!SSL_add_expected_rpk(ssl, rpk))
      /* error */
 
  /* Set a verify callback if desired */

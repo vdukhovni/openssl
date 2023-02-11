@@ -7265,47 +7265,23 @@ int SSL_stream_conclude(SSL *ssl, uint64_t flags)
 #endif
 }
 
-int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk, uint8_t mtype)
+int SSL_add_expected_rpk(SSL *s, EVP_PKEY *rpk)
 {
-    unsigned char *i2dbuf = NULL;
+    unsigned char *data = NULL;
     SSL_DANE *dane = SSL_get0_dane(s);
-    size_t i2dlen;
-    unsigned char dgstbuf[EVP_MAX_MD_SIZE];
-    unsigned int dgstlen;
-    unsigned char *data;
-    size_t len;
     int ret;
-    const EVP_MD *md = NULL;
-    int ok = 0;
 
-    if (dane == NULL || dane->dctx == NULL || mtype > dane->dctx->mdmax)
+    if (dane == NULL || dane->dctx == NULL)
+        return 0;
+    if ((ret = i2d_PUBKEY(rpk, &data)) <= 0)
         return 0;
 
-    if ((ret = i2d_PUBKEY(rpk, &i2dbuf)) <= 0)
-        goto err;
-
-    len = i2dlen = (size_t)ret;
-    data = i2dbuf;
-
-    if (mtype != OSSL_DANETLS_MATCHING_FULL) {
-        if ((md = dane->dctx->mdevp[mtype]) == NULL)
-            goto err;
-        if (!EVP_Digest(i2dbuf, i2dlen, dgstbuf, &dgstlen, md, 0))
-            goto err;
-        data = dgstbuf;
-        len = (size_t)dgstlen;
-    }
-
-    if (SSL_dane_tlsa_add(s, OSSL_DANETLS_USAGE_DANE_EE,
-                          OSSL_DANETLS_SELECTOR_SPKI,
-                          mtype,
-                          data, len) <= 0)
-        goto err;
-
-    ok = 1;
- err:
-    OPENSSL_free(i2dbuf);
-    return ok;
+    ret = SSL_dane_tlsa_add(s, OSSL_DANETLS_USAGE_DANE_EE,
+                            OSSL_DANETLS_SELECTOR_SPKI,
+                            OSSL_DANETLS_MATCHING_FULL,
+                            data, (size_t)ret) > 0;
+    OPENSSL_free(data);
+    return ret;
 }
 
 EVP_PKEY *SSL_get0_peer_rpk(const SSL *s)
