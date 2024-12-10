@@ -46,6 +46,6 @@ SOURCE[$MAC_GOAL]=mac_legacy_kmgmt.c
 
 SOURCE[$TEMPLATE_GOAL]=template_kmgmt.c
 
-IF[{- !$disabled{ml-kem} -}]
+IF[{- !$disabled{'ml-kem'} -}]
   SOURCE[$ML_KEM_GOAL]=ml_kem_kmgmt.c
 ENDIF

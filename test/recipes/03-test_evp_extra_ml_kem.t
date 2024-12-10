@@ -10,9 +10,10 @@ use OpenSSL::Test;
 use OpenSSL::Test::Utils;
 use OpenSSL::Test qw/:DEFAULT srctop_file/;
 
-setup("ml_kem_internal_test");
-plan skip_all => 'EC is not supported in this build'
+setup("ml_kem_extra_test");
+plan skip_all => 'ML-KEM is not supported in this build'
     if disabled('ml-kem');
-plan tests => 1;
+plan tests => 2;
 
-ok(run(test(["ml_kem_internal_test"])));
+ok(run(test(["ml_kem_evp_extra_test"])));
+ok(run(test(["ml_kem_evp_extra_test", "-test-rand"])));
