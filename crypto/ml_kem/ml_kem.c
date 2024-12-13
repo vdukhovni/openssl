@@ -18,7 +18,24 @@
 
 #define DEGREE              ML_KEM_DEGREE
 #define BARRETT_SHIFT       (2 * ML_KEM_LOG2PRIME)
-#define SHAKE128_BLOCKSIZE  SHA3_BLOCKSIZE(128)
+#ifdef SHA3_BLOCKSIZE
+# define SHAKE128_BLOCKSIZE  SHA3_BLOCKSIZE(128)
+#endif
+
+/*
+ * The scalar rejection-sampling buffer size needs to be a multiple of 3, but
+ * is otherwise arbitrary, the preferred block size matches the internal buffer
+ * size of SHAKE128, avoiding internal buffering and copying in SHAKE128. That
+ * block size of (1600 - 256)/8 bytes, or 168, just happens to divide by 3!
+ *
+ * If the blocksize is unknown, or is not divisible by 3, 168 is used as a
+ * fallback.
+ */
+#if defined(SHAKE128_BLOCKSIZE) && (SHAKE128_BLOCKSIZE) % 3 == 0
+# define SCALAR_SAMPLING_BUFSIZE (SHAKE128_BLOCKSIZE)
+#else
+# define SCALAR_SAMPLING_BUFSIZE 168
+#endif
 
 /*
  * Structure of keys
@@ -348,25 +365,14 @@ int kdf(uint8_t out[ML_KEM_SHARED_SECRET_BYTES],
  * are performed by the caller). Rejection-samples a Keccak stream to get
  * uniformly distributed elements in the range [0,q). This is used for matrix
  * expansion and only operates on public inputs.
- *
- * The block size below needs to be a multiple of 3, but is otherwise
- * arbitrary, the chosen block size avoids internal buffering in SHAKE128, by
- * matching the Keccac output block size of (1600 - 256)/8 bytes, which, being
- * 168, just happens to be a multiple of 3!
  */
 static __owur
 int sample_scalar(scalar *out, EVP_MD_CTX *mdctx)
 {
     int done = 0;
-    uint8_t block[SHAKE128_BLOCKSIZE], *buf;
+    uint8_t block[SCALAR_SAMPLING_BUFSIZE], *buf;
     uint8_t *end = block + sizeof(block);
     uint16_t d1, d2;
-
-#define DIVIDES_BY_3(n)             ((n % 3) ? -1 : 1)
-#define SHAKE128_BLKSZ_0_MOD3       (DIVIDES_BY_3(SHAKE128_BLOCKSIZE))
-#define CHECK_SHAKE128_BLKSZ_0_MOD3 ((void)sizeof(int[SHAKE128_BLKSZ_0_MOD3]))
-
-    CHECK_SHAKE128_BLKSZ_0_MOD3;
 
     while (done < DEGREE) {
         if (!EVP_DigestSqueeze(mdctx, block, sizeof(block)))
