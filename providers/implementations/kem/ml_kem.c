@@ -105,25 +105,20 @@ static int ml_kem_set_ctx_params(void *vctx, const OSSL_PARAM params[])
     if (ossl_param_is_empty(params))
         return 1;
 
-    p = OSSL_PARAM_locate_const(params, OSSL_KEM_PARAM_IKME);
-    if (p == NULL)
-        return 1;
+    if ((p = OSSL_PARAM_locate_const(params, OSSL_KEM_PARAM_IKME)) != NULL) {
+        size_t len = ML_KEM_RANDOM_BYTES;
 
-    /*
-     * Treat wrong data type as promised, but missing.  Calling the
-     * encapsulation "entropy" a "seed" should not be too confusing.
-     */
-    if (p->data_type != OSSL_PARAM_OCTET_STRING) {
-        ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_SEED);
-        return 0;
-    }
-    if (p->data_size != ML_KEM_RANDOM_BYTES) {
+        ctx->entropy = ctx->entropy_buf;
+        if (OSSL_PARAM_get_octet_string(p, (void **)&ctx->entropy,
+                                        len, &len)
+            && len == ML_KEM_RANDOM_BYTES)
+            return 1;
+
+        /* Possibly, but much less likely wrong type */
         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_SEED_LENGTH);
+        ctx->entropy = NULL;
         return 0;
     }
-
-    ctx->entropy = ctx->entropy_buf;
-    memcpy(ctx->entropy, p->data, ML_KEM_RANDOM_BYTES);
     return 1;
 }
 
