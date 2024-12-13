@@ -55,7 +55,7 @@ static void ml_kem_freectx(void *vctx)
 {
     PROV_ML_KEM_CTX *ctx = vctx;
 
-    if (ctx->entropy)
+    if (ctx->entropy != NULL)
         OPENSSL_cleanse(ctx->entropy, ML_KEM_RANDOM_BYTES);
     OPENSSL_free(ctx);
 }

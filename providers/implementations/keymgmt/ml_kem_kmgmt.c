@@ -41,13 +41,13 @@ static OSSL_FUNC_keymgmt_dup_fn ml_kem_dup;
 
 typedef const ML_KEM_VINFO *vinfo_t;
 
-struct ml_kem_gen_ctx {
+typedef struct ml_kem_gen_ctx_st {
     OSSL_LIB_CTX *libctx;
     char *propq;
     int variant;
     uint8_t seedbuf[ML_KEM_SEED_BYTES];
     uint8_t *seed;
-};
+} PROV_ML_KEM_GEN_CTX;
 
 static void *ml_kem_new(OSSL_LIB_CTX *libctx, char *propq, int variant)
 {
@@ -360,7 +360,7 @@ static int ml_kem_set_params(void *vkey, const OSSL_PARAM params[])
 
 static int ml_kem_gen_set_params(void *vgctx, const OSSL_PARAM params[])
 {
-    struct ml_kem_gen_ctx *gctx = vgctx;
+    PROV_ML_KEM_GEN_CTX *gctx = vgctx;
     const OSSL_PARAM *p;
 
     if (gctx == NULL)
@@ -397,7 +397,7 @@ static int ml_kem_gen_set_params(void *vgctx, const OSSL_PARAM params[])
 static void *ml_kem_gen_init(void *provctx, int selection,
                              const OSSL_PARAM params[], int variant)
 {
-    struct ml_kem_gen_ctx *gctx = NULL;
+    PROV_ML_KEM_GEN_CTX *gctx = NULL;
 
     /*
      * We can only generate private keys, check that the selection is
@@ -415,8 +415,7 @@ static void *ml_kem_gen_init(void *provctx, int selection,
     if (ml_kem_gen_set_params(gctx, params))
         return gctx;
 
-    OPENSSL_free(gctx->propq);
-    OPENSSL_free(gctx);
+    ml_kem_gen_cleanup(gctx);
     return NULL;
 }
 
@@ -432,7 +431,7 @@ static const OSSL_PARAM *ml_kem_gen_settable_params(ossl_unused void *vgctx,
 
 static void *ml_kem_gen(void *vgctx, OSSL_CALLBACK *osslcb, void *cbarg)
 {
-    struct ml_kem_gen_ctx *gctx = vgctx;
+    PROV_ML_KEM_GEN_CTX *gctx = vgctx;
     ML_KEM_KEY *key;
     uint8_t *nopub = NULL;
     uint8_t *seed = gctx->seed;
@@ -461,7 +460,7 @@ static void *ml_kem_gen(void *vgctx, OSSL_CALLBACK *osslcb, void *cbarg)
 
 static void ml_kem_gen_cleanup(void *vgctx)
 {
-    struct ml_kem_gen_ctx *gctx = vgctx;
+    PROV_ML_KEM_GEN_CTX *gctx = vgctx;
 
     if (gctx->seed != NULL)
         OPENSSL_cleanse(gctx->seed, ML_KEM_RANDOM_BYTES);

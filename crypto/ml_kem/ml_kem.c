@@ -582,8 +582,7 @@ static void scalar_encode(uint8_t *out, const scalar *s, int bits)
             if (chunk_bits >= out_bits_remaining) {
                 chunk_bits = out_bits_remaining;
                 out_byte |= (element & kMasks[chunk_bits - 1]) << out_byte_bits;
-                *out = out_byte;
-                out++;
+                *out++ = out_byte;
                 out_byte_bits = 0;
                 out_byte = 0;
             } else {
@@ -1059,6 +1058,10 @@ static cbd_t const cbd1[ML_KEM_1024 + 1] = { cbd_3, cbd_2, cbd_2 };
  *
  * The steps are re-ordered to make more efficient/localised use of storage.
  *
+ * Note also that the input public key is assumed to hold a precomputed matrix
+ * |A| (our key->m, with the public key holding an expanded (16-bit per scalar
+ * coefficient) key->t vector.
+ *
  * Caller passes storage in |tmp| for for two temporary vectors.
  */
 static __owur
@@ -1229,15 +1232,38 @@ static int parse_prvkey(const uint8_t *in, EVP_MD_CTX *mdctx, ML_KEM_KEY *key)
 }
 
 /*
- * Key generation consumes a 32-byte RNG output plus 1 byte for the rank
- * (domain separation) which are hashed together to produce a pair of
- * 32-byte seeds public "rho" and private "sigma".
+ * FIPS 203, Section 6.1, Algorithm 16: "ML-KEM.KeyGen_internal".
+ *
+ * The implementation of Section 5.1, Algorithm 13, "K-PKE.KeyGen(d)" is
+ * inlined.
+ *
+ * The caller MUST also pass a pre-allocated scratch buffer |tmp| with room for
+ * at least one "vector" (rank * sizeof(scalar)), and a pre-allocated digest
+ * context that is not shared with any concurrent computation.
+ *
+ * This function outputs the serialised wire-form |ek| public key into  the
+ * provided |pubenc| buffer, and generates the content of the |rho|, |pkhash|,
+ * |t|, |m|, |s| and |z| components of the private |key| (which must have
+ * preallocated space for these).
+ *
+ * Keys are computed from a 32-byte random |d| plus the 1 byte rank for
+ * domain separation.  These are concatenated and hashed to produce a pair of
+ * 32-byte seeds public "rho", used to generate the matrix, and private "sigma",
+ * used to generate the secret vector |s|.
+ *
+ * The second random input |z| is copied verbatim into the Fujisaki-Okamoto
+ * (FO) transform "implicit-rejection" secret (the |z| component of the private
+ * key), which thwarts chosen-ciphertext attacks, provided decap() runs in
+ * constant time, with no side channel leaks, on all well-formed (valid length,
+ * and correctly encoded) ciphertext inputs.
  */
 static __owur
-int genkey(const uint8_t seed[ML_KEM_SEED_BYTES], uint8_t *pubenc, scalar *tmp,
-           EVP_MD_CTX *mdctx, ML_KEM_KEY *key)
+int genkey(const uint8_t d[ML_KEM_RANDOM_BYTES],
+           const uint8_t z[ML_KEM_RANDOM_BYTES],
+           scalar *tmp, EVP_MD_CTX *mdctx,
+           uint8_t *pubenc, ML_KEM_KEY *key)
 {
-    uint8_t hashed[ML_KEM_SEED_BYTES];
+    uint8_t hashed[2 * ML_KEM_RANDOM_BYTES];
     const uint8_t *const sigma = hashed + ML_KEM_RANDOM_BYTES;
     uint8_t augmented_seed[ML_KEM_RANDOM_BYTES + 1];
     vinfo_t vinfo = key->vinfo;
@@ -1245,8 +1271,11 @@ int genkey(const uint8_t seed[ML_KEM_SEED_BYTES], uint8_t *pubenc, scalar *tmp,
     int rank = vinfo->rank;
     uint8_t counter = 0;
 
-    /* Use "d" portion of seed salted with the rank to generate key material */
-    memcpy(augmented_seed, seed, ML_KEM_RANDOM_BYTES);
+    /*
+     * Use the "d" seed salted with the rank to derive the public and private
+     * seeds rho and sigma.
+     */
+    memcpy(augmented_seed, d, ML_KEM_RANDOM_BYTES);
     augmented_seed[ML_KEM_RANDOM_BYTES] = (uint8_t) rank;
     if (!hash_g(hashed, augmented_seed, sizeof(augmented_seed), mdctx, key))
         return 0;
@@ -1268,7 +1297,7 @@ int genkey(const uint8_t seed[ML_KEM_SEED_BYTES], uint8_t *pubenc, scalar *tmp,
         return 0;
 
     /* Save "z" portion of seed for "implicit rejection" on failure */
-    memcpy(key->z, seed + ML_KEM_RANDOM_BYTES, ML_KEM_RANDOM_BYTES);
+    memcpy(key->z, z, ML_KEM_RANDOM_BYTES);
     return 1;
 }
 
@@ -1608,6 +1637,9 @@ int ossl_ml_kem_genkey_seed(const uint8_t *seed, size_t seedlen,
         return 0;
 
     if (add_storage(OPENSSL_malloc(vinfo->prvalloc), 1, key)) {
+        const uint8_t *d = seed;
+        const uint8_t *z = seed + ML_KEM_RANDOM_BYTES;
+
         /*-
          * This avoids the need to handle allocation failures for two (max 2KB
          * each) vectors and (if the caller does not want the public key) an
@@ -1621,12 +1653,12 @@ int ossl_ml_kem_genkey_seed(const uint8_t *seed, size_t seedlen,
             { \
                 scalar tmp[ML_KEM_##bits##_RANK]; \
                                                              \
-                ret = genkey(seed, pubenc, tmp, mdctx, key); \
+                ret = genkey(d, z, tmp, mdctx, pubenc, key); \
             } else { \
                 scalar tmp[ML_KEM_##bits##_RANK]; \
                 uint8_t encbuf[ML_KEM_##bits##_PUBLIC_KEY_BYTES]; \
                                                              \
-                ret = genkey(seed, encbuf, tmp, mdctx, key); \
+                ret = genkey(d, z, tmp, mdctx, encbuf, key); \
             } \
             break
         switch (vinfo->variant) {
