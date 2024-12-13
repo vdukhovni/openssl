@@ -346,10 +346,10 @@ int kdf(uint8_t out[ML_KEM_SHARED_SECRET_BYTES],
 }
 
 /*
- * FIPS 203, Section 4.2.2, Algorithm 7: SampleNTT (steps 3-17, steps 1, 2 are
- * performed by the caller). Rejection samples a Keccak stream to get uniformly
- * distributed elements in the range [0,q). This is used for matrix expansion
- * and only operates on public inputs.
+ * FIPS 203, Section 4.2.2, Algorithm 7: "SampleNTT" (steps 3-17, steps 1, 2
+ * are performed by the caller). Rejection-samples a Keccak stream to get
+ * uniformly distributed elements in the range [0,q). This is used for matrix
+ * expansion and only operates on public inputs.
  *
  * The block size below needs to be a multiple of 3, but is otherwise
  * arbitrary, the chosen block size avoids internal buffering in SHAKE128, by
@@ -420,13 +420,14 @@ static __owur uint16_t reduce(uint32_t x)
     return reduce_once(remainder);
 }
 
-/*
- * FIPS 203, Section 4.3, Algoritm 9: NTT.  In-place number theoretic transform
- * of a given scalar.  Note that ML-KEM's kPrime 3329 does not have a 512th
- * root of unity, so this transform leaves off the last iteration of the usual
- * FFT code, with the 128 relevant roots of unity being stored in NTTRoots.
- * This means the output should be seen as 128 elements in GF(3329^2), with the
- * coefficients of the elements being consecutive entries in |s->c|.
+/*-
+ * FIPS 203, Section 4.3, Algoritm 9: "NTT".
+ * In-place number theoretic transform of a given scalar.  Note that ML-KEM's
+ * kPrime 3329 does not have a 512th root of unity, so this transform leaves
+ * off the last iteration of the usual FFT code, with the 128 relevant roots of
+ * unity being stored in NTTRoots.  This means the output should be seen as 128
+ * elements in GF(3329^2), with the coefficients of the elements being
+ * consecutive entries in |s->c|.
  */
 static void scalar_ntt(scalar *s)
 {
@@ -455,13 +456,13 @@ static void scalar_ntt(scalar *s)
     }
 }
 
-/*
- * FIPS 203, Section 4.3, Algoritm 10: NTT^(-1).  In-place inverse number
- * theoretic transform of a given scalar, with pairs of entries of s->v being
- * interpreted as elements of GF(3329^2). Just as with the number theoretic
- * transform, this leaves off the first step of the normal iFFT to account for
- * the fact that 3329 does not have a 512th root of unity, using the
- * precomputed 128 roots of unity stored in InverseNTTRoots.
+/*-
+ * FIPS 203, Section 4.3, Algoritm 10: "NTT^(-1)".
+ * In-place inverse number theoretic transform of a given scalar, with pairs of
+ * entries of s->v being interpreted as elements of GF(3329^2). Just as with
+ * the number theoretic transform, this leaves off the first step of the normal
+ * iFFT to account for the fact that 3329 does not have a 512th root of unity,
+ * using the precomputed 128 roots of unity stored in InverseNTTRoots.
  *
  * FIPS 203, Algorithm 10, performs this transformation in a slightly different
  * manner, using the same NTTRoots table as the forward NTT transform.
@@ -555,9 +556,10 @@ void scalar_mult_add(scalar *out, const scalar *lhs,
 static const uint8_t kMasks[8] = {0x01, 0x03, 0x07, 0x0f,
                                   0x1f, 0x3f, 0x7f, 0xff};
 
-/*
- * FIPS 203, Section 4.2.1, Algorithm 5: ByteEncode_d, for 2<=d<=12 Here |bits|
- * is |d|.  For efficiency, we handle the d=1 case separately.
+/*-
+ * FIPS 203, Section 4.2.1, Algorithm 5: "ByteEncode_d", for 2<=d<12.
+ * Here |bits| is |d|.  For efficiency, we handle the d=1, and d=12 cases
+ * separately.
  */
 static void scalar_encode(uint8_t *out, const scalar *s, int bits)
 {
@@ -566,7 +568,7 @@ static void scalar_encode(uint8_t *out, const scalar *s, int bits)
     int i, element_bits_done, chunk_bits, out_bits_remaining;
     uint16_t element;
 
-    assert(bits <= (int)sizeof(*s->c) * 8 && bits != 1);
+    assert(bits < 12 && bits > 1);
     for (i = 0; i < DEGREE; i++) {
         element = s->c[i];
         element_bits_done = 0;
@@ -595,7 +597,7 @@ static void scalar_encode(uint8_t *out, const scalar *s, int bits)
 /*
  * scalar_encode_12 is |scalar_encode| specialised for |bits| == 12.
  */
-static void scalar_encode_12(uint8_t *out, const scalar *s)
+static void scalar_encode_12(uint8_t out[3 * DEGREE / 2], const scalar *s)
 {
     const uint16_t *c = s->c;
     int i;
@@ -612,9 +614,8 @@ static void scalar_encode_12(uint8_t *out, const scalar *s)
 
 /*
  * scalar_encode_1 is |scalar_encode| specialised for |bits| == 1.
- * uint8_t out[32]
  */
-static void scalar_encode_1(uint8_t *out, const scalar *s)
+static void scalar_encode_1(uint8_t out[DEGREE / 8], const scalar *s)
 {
     int i, j;
     uint8_t out_byte;
@@ -628,13 +629,18 @@ static void scalar_encode_1(uint8_t *out, const scalar *s)
     }
 }
 
-/*
- * FIPS 203, Section 4.2.1, Algorithm 6: ByteDecode_d, for 2<=d<=12 Here |bits|
- * is |d|.  For efficiency, we handle the d=1 case separately.
+/*-
+ * FIPS 203, Section 4.2.1, Algorithm 6: "ByteDecode_d", for 2<=d<12.
+ * Here |bits| is |d|.  For efficiency, we handle the d=1 and d=12 cases
+ * separately.
  *
  * scalar_decode parses |DEGREE * bits| bits from |in| into |DEGREE| values in
  * |out|. It returns one on success and zero if any parsed value is >=
  * |kPrime|.
+ *
+ * Note: Used in decrypt_cpa(), which returns void and so does not check the
+ * return value of this function.  But also used in vector_decode(), which
+ * returns early when scalar_decode() fails.
  */
 static int scalar_decode(scalar *out, const uint8_t *in, int bits)
 {
@@ -643,7 +649,7 @@ static int scalar_decode(scalar *out, const uint8_t *in, int bits)
     int i, element_bits_done, chunk_bits;
     uint16_t element;
 
-    if (!ossl_assert(bits < 12 && bits != 1))
+    if (!ossl_assert(bits < 12 && bits > 1))
         return 0;
     for (i = 0; i < DEGREE; i++) {
         element = 0;
@@ -669,7 +675,8 @@ static int scalar_decode(scalar *out, const uint8_t *in, int bits)
     return 1;
 }
 
-static int scalar_decode_12(scalar *out, const uint8_t *in)
+static __owur
+int scalar_decode_12(scalar *out, const uint8_t in[3 * DEGREE / 2])
 {
     int i;
     uint16_t *c = out->c;
@@ -687,7 +694,7 @@ static int scalar_decode_12(scalar *out, const uint8_t *in)
 }
 
 /* scalar_decode_1 is |scalar_decode| specialised for |bits| == 1. */
-static void scalar_decode_1(scalar *out, const uint8_t *in)
+static void scalar_decode_1(scalar *out, const uint8_t in[DEGREE / 8])
 {
     int i, j;
     uint8_t in_byte;
@@ -756,6 +763,10 @@ static __owur uint16_t decompress(uint16_t x, int bits)
     return lower + (remainder >> (bits - 1));
 }
 
+/*-
+ * FIPS 203, Section 4.2.1, Equation (4.7): "Compress_d".
+ * In-place lossy rounding of scalars to 2^d bits.
+ */
 static void scalar_compress(scalar *s, int bits)
 {
     int i;
@@ -764,6 +775,10 @@ static void scalar_compress(scalar *s, int bits)
         s->c[i] = compress(s->c[i], bits);
 }
 
+/*
+ * FIPS 203, Section 4.2.1, Equation (4.8): "Decompress_d".
+ * In-place approximate recovery of scalars from 2^d bit compression.
+ */
 static void scalar_decompress(scalar *s, int bits)
 {
     int i;
@@ -795,19 +810,23 @@ static void vector_encode(uint8_t *out, const scalar *a, int bits, int rank)
 /*
  * Decodes 32*|rank|*|bits| bytes from |in| into |out|. It returns one on
  * success or zero if any parsed value is >= |ML_KEM_PRIME|.
+ *
+ * Note: Used only in decrypt_cpa(), which returns void and so does not check
+ * the return value of this function.  Side-channels are fine when the input
+ * ciphertext to decap() is simply syntactically invalid.
  */
-static int vector_decode(scalar *out, const uint8_t *in, int bits, int rank)
+static void vector_decode(scalar *out, const uint8_t *in, int bits, int rank)
 {
     int stride = bits * DEGREE / 8;
 
     for (; rank-- > 0; in += stride)
         if (!scalar_decode(out++, in, bits))
-            return 0;
-    return 1;
+            return;
 }
 
-/* vector_encode, specialised to bits == 12. */
-static void vector_encode_12(uint8_t *out, const scalar *a, int rank)
+/* vector_encode(), specialised to bits == 12. */
+static void vector_encode_12(uint8_t out[3 * DEGREE / 2], const scalar *a,
+                             int rank)
 {
     int stride = 3 * DEGREE / 2;
 
@@ -815,9 +834,9 @@ static void vector_encode_12(uint8_t *out, const scalar *a, int rank)
         scalar_encode_12(out, a++);
 }
 
-/* vector_decode, specialised to bits == 12. */
+/* vector_decode(), specialised to bits == 12. */
 static __owur
-int vector_decode_12(scalar *out, const uint8_t *in, int rank)
+int vector_decode_12(scalar *out, const uint8_t in[3 * DEGREE / 2], int rank)
 {
     int stride = 3 * DEGREE / 2;
 
@@ -827,18 +846,21 @@ int vector_decode_12(scalar *out, const uint8_t *in, int rank)
     return 1;
 }
 
+/* In-place compression of each scalar component */
 static void vector_compress(scalar *a, int bits, int rank)
 {
     while (rank-- > 0)
         scalar_compress(a++, bits);
 }
 
+/* In-place decompression of each scalar component */
 static void vector_decompress(scalar *a, int bits, int rank)
 {
     while (rank-- > 0)
         scalar_decompress(a++, bits);
 }
 
+/* The output scalar must not overlap with the inputs */
 static void inner_product(scalar *out, const scalar *lhs, const scalar *rhs,
                           int rank)
 {
@@ -861,6 +883,7 @@ static void vector_inverse_ntt(scalar *a, int rank)
         scalar_inverse_ntt(a++);
 }
 
+/* Here, the output vector must not overlap with the inputs */
 static void
 matrix_mult(scalar *out, const scalar *m, const scalar *a, int rank)
 {
@@ -874,6 +897,7 @@ matrix_mult(scalar *out, const scalar *m, const scalar *a, int rank)
     }
 }
 
+/* Here, the output vector must not overlap with the inputs */
 static void
 matrix_mult_transpose(scalar *out, const scalar *m, const scalar *a, int rank)
 {
@@ -1031,16 +1055,18 @@ static cbd_t const cbd1[ML_KEM_1024 + 1] = { cbd_3, cbd_2, cbd_2 };
  *
  * The steps are re-ordered to make more efficient/localised use of storage.
  *
- * Caller passes storage for for two temporary vectors.
+ * Caller passes storage in |tmp| for for two temporary vectors.
  */
 static __owur
-int encrypt_cpa(uint8_t *out, const uint8_t *message, const uint8_t *r,
-                scalar *tmp, EVP_MD_CTX *mdctx, const ML_KEM_KEY *key)
+int encrypt_cpa(uint8_t out[ML_KEM_SHARED_SECRET_BYTES],
+                const uint8_t message[DEGREE / 8],
+                const uint8_t r[ML_KEM_RANDOM_BYTES], scalar *tmp,
+                EVP_MD_CTX *mdctx, const ML_KEM_KEY *key)
 {
     vinfo_t vinfo = key->vinfo;
     cbd_t cbd_1 = cbd1[vinfo->variant];
     int rank = vinfo->rank;
-    /* We can use tmp[0] as temporary storage for |y|, then |e1|, ... */
+    /* We can use tmp[0..rank-1] as storage for |y|, then |e1|, ... */
     scalar *y = &tmp[0], *e1 = y, *e2 = y, *mu = y;
     /* We can use tmp[rank]..tmp[2*rank - 1] for |u| */
     scalar *u = &tmp[rank];
@@ -1088,8 +1114,8 @@ int encrypt_cpa(uint8_t *out, const uint8_t *message, const uint8_t *r,
  * FIPS 203, Section 5.3, Algorithm 15: K-PKE.Decrypt.
  */
 static void
-decrypt_cpa(uint8_t *out, const uint8_t *ctext, scalar *u,
-            const ML_KEM_KEY *key)
+decrypt_cpa(uint8_t out[ML_KEM_SHARED_SECRET_BYTES],
+            const uint8_t *ctext, scalar *u, const ML_KEM_KEY *key)
 {
     vinfo_t vinfo = key->vinfo;
     scalar v, mask;
@@ -1109,6 +1135,14 @@ decrypt_cpa(uint8_t *out, const uint8_t *ctext, scalar *u,
     scalar_encode_1(out, &v);
 }
 
+/*-
+ * FIPS 203, Section 7.1, Algorithm 19: "ML-KEM.KeyGen".
+ * FIPS 203, Section 7.2, Algorithm 20: "ML-KEM.Encaps".
+ *
+ * Fills the |out| buffer with the |ek| output of "ML-KEM.KeyGen", or,
+ * equivalently, the |ek| input of "ML-KEM.Encaps", i.e. returns the
+ * wire-format of an ML-KEM public key.
+ */
 static void encode_pubkey(uint8_t *out, const ML_KEM_KEY *key)
 {
     const uint8_t *rho = key->rho;
@@ -1118,6 +1152,12 @@ static void encode_pubkey(uint8_t *out, const ML_KEM_KEY *key)
     memcpy(out + vinfo->vector_bytes, rho, ML_KEM_RANDOM_BYTES);
 }
 
+/*-
+ * FIPS 203, Section 7.1, Algorithm 19: "ML-KEM.KeyGen".
+ *
+ * Fills the |out| buffer with the |dk| output of "ML-KEM.KeyGen".
+ * This matches the input format of parse_prvkey() below.
+ */
 static void encode_prvkey(uint8_t *out, const ML_KEM_KEY *key)
 {
     vinfo_t vinfo = key->vinfo;
@@ -1131,6 +1171,14 @@ static void encode_prvkey(uint8_t *out, const ML_KEM_KEY *key)
     memcpy(out, key->z, ML_KEM_RANDOM_BYTES);
 }
 
+/*-
+ * FIPS 203, Section 7.1, Algorithm 19: "ML-KEM.KeyGen".
+ * FIPS 203, Section 7.2, Algorithm 20: "ML-KEM.Encaps".
+ *
+ * This function parses the |in| buffer as the |ek| output of "ML-KEM.KeyGen",
+ * or, equivalently, the |ek| input of "ML-KEM.Encaps", i.e. decodes the
+ * wire-format of the ML-KEM public key.
+ */
 static int parse_pubkey(const uint8_t *in, EVP_MD_CTX *mdctx, ML_KEM_KEY *key)
 {
     vinfo_t vinfo = key->vinfo;
@@ -1148,7 +1196,12 @@ static int parse_pubkey(const uint8_t *in, EVP_MD_CTX *mdctx, ML_KEM_KEY *key)
         && matrix_expand(mdctx, key);
 }
 
-/* Loading of explicit private keys is a test-only interface. */
+/*
+ * FIPS 203, Section 7.1, Algorithm 19: "ML-KEM.KeyGen".
+ *
+ * Parses the |in| buffer as a |dk| output of "ML-KEM.KeyGen".
+ * This matches the output format of encode_prvkey() above.
+ */
 static int parse_prvkey(const uint8_t *in, EVP_MD_CTX *mdctx, ML_KEM_KEY *key)
 {
     vinfo_t vinfo = key->vinfo;
@@ -1177,7 +1230,7 @@ static int parse_prvkey(const uint8_t *in, EVP_MD_CTX *mdctx, ML_KEM_KEY *key)
  * 32-byte seeds public "rho" and private "sigma".
  */
 static __owur
-int genkey(const uint8_t *seed, uint8_t *pubenc, scalar *tmp,
+int genkey(const uint8_t seed[ML_KEM_SEED_BYTES], uint8_t *pubenc, scalar *tmp,
            EVP_MD_CTX *mdctx, ML_KEM_KEY *key)
 {
     uint8_t hashed[ML_KEM_SEED_BYTES];
@@ -1215,12 +1268,16 @@ int genkey(const uint8_t *seed, uint8_t *pubenc, scalar *tmp,
     return 1;
 }
 
-/*
- * FIPS 203, Section 6.2, Algorithm 17: ML-KEM.Encaps_internal
+/*-
+ * FIPS 203, Section 6.2, Algorithm 17: "ML-KEM.Encaps_internal".
  * This is the deterministic version with randomness supplied externally.
+ *
+ * The caller must pass space for two vectors in |tmp|.
+ * The |ctext| buffer have space for the ciphertext of the ML-KEM variant
+ * of the provided key.
  */
 static
-int encap(uint8_t *out, uint8_t *out_shared_secret,
+int encap(uint8_t *ctext, uint8_t secret[ML_KEM_SHARED_SECRET_BYTES],
           const uint8_t entropy[ML_KEM_RANDOM_BYTES],
           scalar *tmp, EVP_MD_CTX *mdctx, const ML_KEM_KEY *key)
 {
@@ -1235,9 +1292,9 @@ int encap(uint8_t *out, uint8_t *out_shared_secret,
     memcpy(input, entropy, ML_KEM_RANDOM_BYTES);
     memcpy(input + ML_KEM_RANDOM_BYTES, key->pkhash, ML_KEM_PKHASH_BYTES);
     if (!hash_g(Kr, input, sizeof(input), mdctx, key)
-        || !encrypt_cpa(out, entropy, r, tmp, mdctx, key))
+        || !encrypt_cpa(ctext, entropy, r, tmp, mdctx, key))
         return 0;
-    memcpy(out_shared_secret, Kr, ML_KEM_SHARED_SECRET_BYTES);
+    memcpy(secret, Kr, ML_KEM_SHARED_SECRET_BYTES);
     return 1;
 }
 
@@ -1247,10 +1304,14 @@ int encap(uint8_t *out, uint8_t *out_shared_secret,
  * Barring failure of the supporting SHA3/SHAKE primitives, this is fully
  * deterministic, the randomness for the FO transform is extracted during
  * private key generation.
+ *
+ * The caller must pass space for two vectors in |tmp|.
+ * The |ctext| and |tmp_ctext| buffers must each have space for the ciphertext
+ * of the key's ML-KEM variant.
  */
 static
-int decap(uint8_t *shared_secret, const uint8_t *ctext,
-          uint8_t *tmp_ctext, scalar *tmp,
+int decap(uint8_t secret[ML_KEM_SHARED_SECRET_BYTES],
+          const uint8_t *ctext, uint8_t *tmp_ctext, scalar *tmp,
           EVP_MD_CTX *mdctx, const ML_KEM_KEY *key)
 {
     uint8_t decrypted[ML_KEM_SHARED_SECRET_BYTES + ML_KEM_PKHASH_BYTES];
@@ -1287,13 +1348,13 @@ int decap(uint8_t *shared_secret, const uint8_t *ctext,
     memcpy(decrypted + ML_KEM_SHARED_SECRET_BYTES, pkhash, ML_KEM_PKHASH_BYTES);
     if (!hash_g(Kr, decrypted, sizeof(decrypted), mdctx, key)
         || !encrypt_cpa(tmp_ctext, decrypted, r, tmp, mdctx, key)) {
-        memcpy(shared_secret, failure_key, ML_KEM_SHARED_SECRET_BYTES);
+        memcpy(secret, failure_key, ML_KEM_SHARED_SECRET_BYTES);
         return 1;
     }
     mask = constant_time_eq_int_8(0,
         CRYPTO_memcmp(ctext, tmp_ctext, vinfo->ctext_bytes));
     for (i = 0; i < ML_KEM_SHARED_SECRET_BYTES; i++)
-        shared_secret[i] = constant_time_select_8(mask, Kr[i], failure_key[i]);
+        secret[i] = constant_time_select_8(mask, Kr[i], failure_key[i]);
     return 1;
 }
 
@@ -1328,10 +1389,8 @@ ML_KEM_KEY *ossl_ml_kem_key_new(OSSL_LIB_CTX *libctx, const char *properties,
     if (vinfo == NULL)
         return NULL;
 
-    if ((key = OPENSSL_malloc(sizeof(*key))) == NULL) {
-        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+    if ((key = OPENSSL_malloc(sizeof(*key))) == NULL)
         return NULL;
-    }
 
     key->vinfo = vinfo;
     key->libctx = libctx;
