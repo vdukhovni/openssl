@@ -13,14 +13,12 @@
 # define OPENSSL_HEADER_ML_KEM_H
 # pragma once
 
-# ifndef OPENSSL_NO_ML_KEM
+# include <openssl/e_os2.h>
+# include <openssl/core_dispatch.h>
+# include <crypto/evp.h>
+# include <crypto/types.h>
 
-#  include <openssl/e_os2.h>
-#  include <openssl/core_dispatch.h>
-#  include <crypto/evp.h>
-#  include <crypto/types.h>
-
-#  define ML_KEM_DEGREE 256
+# define ML_KEM_DEGREE 256
 /*
  * With (q-1) an odd multiple of 256, and 17 ("zeta") as a primitive 256th root
  * of unity, the polynomial (X^256+1) splits in Z_q[X] into 128 irreducible
@@ -30,9 +28,9 @@
  * 12 bits are sufficient to losslessly represent values in [0, q-1].
  * INVERSE_DEGREE is (n/2)^-1 mod q; used in inverse NTT.
  */
-#  define ML_KEM_PRIME          (ML_KEM_DEGREE * 13 + 1)
-#  define ML_KEM_LOG2PRIME      12
-#  define ML_KEM_INVERSE_DEGREE (ML_KEM_PRIME - 2 * 13)
+# define ML_KEM_PRIME          (ML_KEM_DEGREE * 13 + 1)
+# define ML_KEM_LOG2PRIME      12
+# define ML_KEM_INVERSE_DEGREE (ML_KEM_PRIME - 2 * 13)
 
 /*
  * Various ML-KEM primitives need random input, 32-bytes at a time.  Key
@@ -53,11 +51,11 @@
  * Note that the matrix "m" we store in the public key is the transpose of the
  * "A" matrix from FIPS 203!
  */
-#  define ML_KEM_RANDOM_BYTES    32 /* rho, sigma, ... */
-#  define ML_KEM_SEED_BYTES      (ML_KEM_RANDOM_BYTES * 2) /* Keygen (d, z) */
+# define ML_KEM_RANDOM_BYTES    32 /* rho, sigma, ... */
+# define ML_KEM_SEED_BYTES      (ML_KEM_RANDOM_BYTES * 2) /* Keygen (d, z) */
 
-#  define ML_KEM_PKHASH_BYTES        32 /* Salts the shared-secret */
-#  define ML_KEM_SHARED_SECRET_BYTES 32
+# define ML_KEM_PKHASH_BYTES        32 /* Salts the shared-secret */
+# define ML_KEM_SHARED_SECRET_BYTES 32
 
 /*-
  * The ML-KEM specification can be found in
@@ -94,21 +92,21 @@
 /*
  * The wire form of a losslessly encoded vector (12-bits per element)
  */
-#  define ML_KEM_VECTOR_BYTES(rank) \
+# define ML_KEM_VECTOR_BYTES(rank) \
     ((3 * ML_KEM_DEGREE / 2) * (rank))
 
 /*
  * The wire-form public key consists of the lossless encoding of the vector
  * "t" = "A" * "s" + "e", followed by public seed "rho".
  */
-#  define ML_KEM_PUBKEY_BYTES(rank) \
+# define ML_KEM_PUBKEY_BYTES(rank) \
     (ML_KEM_VECTOR_BYTES(rank) + ML_KEM_RANDOM_BYTES)
 
 /*
  * Our internal serialised private key concatenates serialisations of "s", the
  * public key, the public key hash, and the failure secret "z".
  */
-#  define ML_KEM_PRVKEY_BYTES(rank) \
+# define ML_KEM_PRVKEY_BYTES(rank) \
     (ML_KEM_VECTOR_BYTES(rank) + ML_KEM_PUBKEY_BYTES(rank) \
      + ML_KEM_PKHASH_BYTES + ML_KEM_RANDOM_BYTES)
 
@@ -118,37 +116,37 @@
  * "dv" bits, respectively.  This encoding is the ciphertext input for
  * decapsulation.
  */
-#  define ML_KEM_U_VECTOR_BYTES(rank, du) \
+# define ML_KEM_U_VECTOR_BYTES(rank, du) \
     ((ML_KEM_DEGREE / 8) * (du) * (rank))
-#  define ML_KEM_V_SCALAR_BYTES(dv) \
+# define ML_KEM_V_SCALAR_BYTES(dv) \
     ((ML_KEM_DEGREE / 8) * (dv))
-#  define ML_KEM_CTEXT_BYTES(rank, du, dv) \
+# define ML_KEM_CTEXT_BYTES(rank, du, dv) \
     (ML_KEM_U_VECTOR_BYTES(rank, du) + ML_KEM_V_SCALAR_BYTES(dv))
 
 /*
  * Variant-specific constants and structures
  * -----------------------------------------
  */
-#  define ML_KEM_512_RANK       2
-#  define ML_KEM_512_ETA1       3
-#  define ML_KEM_512_ETA2       2
-#  define ML_KEM_512_DU         10
-#  define ML_KEM_512_DV         4
-#  define ML_KEM_512_RNGSEC     128
+# define ML_KEM_512_RANK       2
+# define ML_KEM_512_ETA1       3
+# define ML_KEM_512_ETA2       2
+# define ML_KEM_512_DU         10
+# define ML_KEM_512_DV         4
+# define ML_KEM_512_RNGSEC     128
 
-#  define ML_KEM_768_RANK       3
-#  define ML_KEM_768_ETA1       2
-#  define ML_KEM_768_ETA2       2
-#  define ML_KEM_768_DU         10
-#  define ML_KEM_768_DV         4
-#  define ML_KEM_768_RNGSEC     192
+# define ML_KEM_768_RANK       3
+# define ML_KEM_768_ETA1       2
+# define ML_KEM_768_ETA2       2
+# define ML_KEM_768_DU         10
+# define ML_KEM_768_DV         4
+# define ML_KEM_768_RNGSEC     192
 
-#  define ML_KEM_1024_RANK      4
-#  define ML_KEM_1024_ETA1      2
-#  define ML_KEM_1024_ETA2      2
-#  define ML_KEM_1024_DU        11
-#  define ML_KEM_1024_DV        5
-#  define ML_KEM_1024_RNGSEC    256
+# define ML_KEM_1024_RANK      4
+# define ML_KEM_1024_ETA1      2
+# define ML_KEM_1024_ETA2      2
+# define ML_KEM_1024_DU        11
+# define ML_KEM_1024_DV        5
+# define ML_KEM_1024_RNGSEC    256
 
 /*
  * External variant-specific API
@@ -216,13 +214,15 @@ struct ossl_ml_kem_key_st {
 };
 
 /* The public key is always present, when the private is */
-#  define ossl_ml_kem_key_vinfo(key)        ((key)->vinfo)
-#  define ossl_ml_kem_have_pubkey(key)      ((key)->t != NULL)
-#  define ossl_ml_kem_have_prvkey(key)      ((key)->s != NULL)
+# define ossl_ml_kem_key_vinfo(key)        ((key)->vinfo)
+# define ossl_ml_kem_have_pubkey(key)      ((key)->t != NULL)
+# define ossl_ml_kem_have_prvkey(key)      ((key)->s != NULL)
 
 /*
  * ----- ML-KEM key lifecycle
  */
+
+# ifndef OPENSSL_NO_ML_KEM
 
 /*
  * Allocate a "bare" key for given ML-KEM variant. Initially without any public
@@ -296,4 +296,5 @@ __owur
 int ossl_ml_kem_pubkey_cmp(const ML_KEM_KEY *key1, const ML_KEM_KEY *key2);
 
 # endif /* OPENSSL_NO_ML_KEM */
+
 #endif  /* OPENSSL_HEADER_ML_KEM_H */

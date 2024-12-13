@@ -34,7 +34,6 @@ typedef const ML_KEM_VINFO *vinfo_t;
 typedef struct {
     OSSL_LIB_CTX *libctx;
     ML_KEM_KEY *key;
-    int op;
     uint8_t entropy_buf[ML_KEM_RANDOM_BYTES];
     uint8_t *entropy;
 } PROV_ML_KEM_CTX;
@@ -61,7 +60,7 @@ static void ml_kem_freectx(void *vctx)
     OPENSSL_free(ctx);
 }
 
-static int ml_kem_init(void *vctx, int op, void *key,
+static int ml_kem_init(void *vctx, int unused_op, void *key,
                        const OSSL_PARAM params[])
 {
     PROV_ML_KEM_CTX *ctx = vctx;
@@ -69,7 +68,6 @@ static int ml_kem_init(void *vctx, int op, void *key,
     if (!ossl_prov_is_running())
         return 0;
     ctx->key = key;
-    ctx->op = op;
     return ml_kem_set_ctx_params(vctx, params);
 }
 

@@ -45,7 +45,6 @@ struct ml_kem_gen_ctx {
     OSSL_LIB_CTX *libctx;
     char *propq;
     int variant;
-    int selection;
     uint8_t seedbuf[ML_KEM_SEED_BYTES];
     uint8_t *seed;
 };
@@ -333,7 +332,7 @@ static int ml_kem_set_params(void *vkey, const OSSL_PARAM params[])
     const void *pubenc = NULL;
     size_t publen = 0;
 
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
     p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY);
@@ -379,22 +378,19 @@ static int ml_kem_gen_set_params(void *vgctx, const OSSL_PARAM params[])
     }
 
     p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_ML_KEM_SEED);
-    if (p == NULL)
-        return 1;
+    if (p != NULL) {
+        size_t len = ML_KEM_SEED_BYTES;
 
-    /* Treat wrong data type as promised, but missing */
-    if (p->data_type != OSSL_PARAM_OCTET_STRING) {
-        ERR_raise(ERR_LIB_PROV, PROV_R_MISSING_SEED);
-        return 0;
-    }
-    if (p->data_size != ML_KEM_SEED_BYTES) {
+        gctx->seed = gctx->seedbuf;
+        if (OSSL_PARAM_get_octet_string(p, (void **)&gctx->seed, len, &len)
+            && len == ML_KEM_SEED_BYTES)
+            return 1;
+
+        /* Possibly, but less likely wrong data type */
         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_SEED_LENGTH);
+        gctx->seed = NULL;
         return 0;
     }
-
-    gctx->seed = gctx->seedbuf;
-    memcpy(gctx->seed, p->data, ML_KEM_SEED_BYTES);
-
     return 1;
 }
 
@@ -403,13 +399,17 @@ static void *ml_kem_gen_init(void *provctx, int selection,
 {
     struct ml_kem_gen_ctx *gctx = NULL;
 
+    /*
+     * We can only generate private keys, check that the selection is
+     * appropriate.
+     */
     if (!ossl_prov_is_running()
+        || (selection & OSSL_KEYMGMT_SELECT_KEYPAIR) == 0
         || (gctx = OPENSSL_zalloc(sizeof(*gctx))) == NULL)
         return NULL;
 
     if (provctx != NULL)
         gctx->libctx = PROV_LIBCTX_OF(provctx);
-    gctx->selection = selection;
     gctx->variant = variant;
 
     if (ml_kem_gen_set_params(gctx, params))
@@ -442,10 +442,6 @@ static void *ml_kem_gen(void *vgctx, OSSL_CALLBACK *osslcb, void *cbarg)
     if (gctx == NULL
         || (key = ml_kem_new(gctx->libctx, gctx->propq, gctx->variant)) == NULL)
         return NULL;
-
-    /* Actual keypair generation may optionally be deferred */
-    if ((gctx->selection & OSSL_KEYMGMT_SELECT_KEYPAIR) == 0)
-        return key;
 
     genok = seed != NULL ?
         ossl_ml_kem_genkey_seed(seed, slen, nopub, 0, key) :

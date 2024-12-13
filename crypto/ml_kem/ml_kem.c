@@ -56,9 +56,7 @@ typedef __owur
 int (*cbd_t)(scalar *out, uint8_t in[ML_KEM_RANDOM_BYTES + 1],
              EVP_MD_CTX *mdctx, const ML_KEM_KEY *key);
 
-/*
- * The wire form of a losslessly encoded vector (12-bits per element)
- */
+/* The wire form of a losslessly encoded vector (12-bits per element). */
 #define ML_KEM_VECTOR_BYTES(rank) \
     ((3 * ML_KEM_DEGREE / 2) * (rank))
 
@@ -1359,6 +1357,40 @@ int decap(uint8_t secret[ML_KEM_SHARED_SECRET_BYTES],
 }
 
 /*
+ * After allocating storage for public or private key data, update the key
+ * component pointers to reference that storage.
+ */
+static __owur
+int add_storage(scalar *p, int private, ML_KEM_KEY *key)
+{
+    int rank = key->vinfo->rank;
+
+    if (p == NULL)
+        return 0;
+    /* A public key needs space for |t| and |m| */
+    key->m = (key->t = p) + rank;
+    /* A private key also needs space for |s| and |z| */
+    if (private)
+        key->z = (uint8_t *)(rank + (key->s = key->m + rank * rank));
+    else
+        key->z = (uint8_t *)(key->s = NULL);
+    return 1;
+}
+
+/*
+ * After freeing the storage associated with a key that failed to be
+ * constructed, reset the internal pointers back to NULL.
+ */
+static void
+free_storage(ML_KEM_KEY *key)
+{
+    if (key->t == NULL)
+        return;
+    OPENSSL_free(key->t);
+    key->z = (uint8_t *)(key->s = key->m = key->t = NULL);
+}
+
+/*
  * ----- API exported to the provider
  *
  * Parameters with an implicit fixed length in the internal static API of each
@@ -1413,7 +1445,7 @@ ML_KEM_KEY *ossl_ml_kem_key_new(OSSL_LIB_CTX *libctx, const char *properties,
 
 ML_KEM_KEY *ossl_ml_kem_key_dup(const ML_KEM_KEY *key, int selection)
 {
-    int rank;
+    int ok = 0;
     ML_KEM_KEY *ret;
 
     if (key == NULL
@@ -1426,25 +1458,20 @@ ML_KEM_KEY *ossl_ml_kem_key_dup(const ML_KEM_KEY *key, int selection)
     else if (!ossl_ml_kem_have_prvkey(key))
         selection &= ~OSSL_KEYMGMT_SELECT_PRIVATE_KEY;
 
-    rank = key->vinfo->rank;
     switch (selection & OSSL_KEYMGMT_SELECT_KEYPAIR) {
     case 0:
-        ret->s = ret->m = ret->t = NULL;
-        ret->z = NULL;
+        ret->z = (uint8_t *)(ret->s = ret->m = ret->t = NULL);
+        ok = 1;
         break;
     case OSSL_KEYMGMT_SELECT_PUBLIC_KEY:
-        ret->t = OPENSSL_memdup(key->t, key->vinfo->puballoc);
-        ret->m = ret->t + rank;
-        ret->s = NULL;
-        ret->z = NULL;
+        ok = add_storage(OPENSSL_memdup(key->t, key->vinfo->puballoc), 0, ret);
         break;
     case OSSL_KEYMGMT_SELECT_PRIVATE_KEY:
-        ret->t = OPENSSL_memdup(key->t, key->vinfo->prvalloc);
-        ret->m = ret->t + rank;
-        ret->s = ret->m + rank * rank;
-        ret->z = (uint8_t *)(ret->s + rank);
+        ok = add_storage(OPENSSL_memdup(key->t, key->vinfo->prvalloc), 1, ret);
         break;
-    default:
+    }
+
+    if (!ok) {
         OPENSSL_free(ret);
         return NULL;
     }
@@ -1518,18 +1545,11 @@ int ossl_ml_kem_parse_public_key(const uint8_t *in, size_t len, ML_KEM_KEY *key)
         || (mdctx = EVP_MD_CTX_new()) == NULL)
         return 0;
 
-    /* A public key needs space for |t| and |m| */
-    if ((key->t = OPENSSL_malloc(vinfo->puballoc)) != NULL) {
-        int rank = vinfo->rank;
-
-        key->m = key->t + rank;
+    if (add_storage(OPENSSL_malloc(vinfo->puballoc), 0, key))
         ret = parse_pubkey(in, mdctx, key);
-    }
 
-    if (!ret) {
-        OPENSSL_free(key->t);
-        key->m = key->t = NULL;
-    }
+    if (!ret)
+        free_storage(key);
     EVP_MD_CTX_free(mdctx);
     return ret;
 }
@@ -1551,21 +1571,11 @@ int ossl_ml_kem_parse_private_key(const uint8_t *in, size_t len,
         || (mdctx = EVP_MD_CTX_new()) == NULL)
         return 0;
 
-    /* A private key needs space for |t|, |m|, |s| and |z| */
-    if ((key->t = OPENSSL_malloc(vinfo->prvalloc)) != NULL) {
-        int rank = vinfo->rank;
-
-        key->m = key->t + vinfo->rank;
-        key->s = key->m + rank * rank;
-        key->z = (uint8_t *)(key->s + rank);
+    if (add_storage(OPENSSL_malloc(vinfo->prvalloc), 1, key))
         ret = parse_prvkey(in, mdctx, key);
-    }
 
-    if (!ret) {
-        OPENSSL_free(key->t);
-        key->s = key->m = key->t = NULL;
-        key->z = NULL;
-    }
+    if (!ret)
+        free_storage(key);
     EVP_MD_CTX_free(mdctx);
     return ret;
 }
@@ -1591,14 +1601,7 @@ int ossl_ml_kem_genkey_seed(const uint8_t *seed, size_t seedlen,
         || (mdctx = EVP_MD_CTX_new()) == NULL)
         return 0;
 
-    /* A private key needs space for |t|, |m|, |s| and |z| */
-    if ((key->t = OPENSSL_malloc(vinfo->prvalloc)) != NULL) {
-        int rank = vinfo->rank;
-
-        key->m = key->t + vinfo->rank;
-        key->s = key->m + rank * rank;
-        key->z = (uint8_t *)(key->s + rank);
-
+    if (add_storage(OPENSSL_malloc(vinfo->prvalloc), 1, key)) {
         /*-
          * This avoids the need to handle allocation failures for two (max 2KB
          * each) vectors and (if the caller does not want the public key) an
@@ -1628,11 +1631,8 @@ int ossl_ml_kem_genkey_seed(const uint8_t *seed, size_t seedlen,
 #       undef case_genkey_seed
     }
 
-    if (!ret) {
-        OPENSSL_free(key->t);
-        key->s = key->m = key->t = NULL;
-        key->z = NULL;
-    }
+    if (!ret)
+        free_storage(key);
     EVP_MD_CTX_free(mdctx);
     return ret;
 }

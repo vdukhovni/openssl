@@ -33,7 +33,7 @@
 #include <openssl/engine.h>
 #include <openssl/proverr.h>
 #include <openssl/rand.h>
-#include <crypto/ml_kem.h>
+# include <crypto/ml_kem.h>
 #include "testutil.h"
 #include "internal/nelem.h"
 #include "internal/sizes.h"
