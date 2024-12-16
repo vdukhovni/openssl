@@ -73,4 +73,12 @@ export OPENSSL_CONF=$OQS_PROVIDER_TESTSCRIPTS/openssl-ca.cnf
 # Be verbose if harness is verbose:
 # Fixup for oqsprovider release snafu:
 cp $SRCTOP/test/recipes/95-test_external_oqsprovider_data/oqsprovider-pkcs12gen.sh $SRCTOP/oqs-provider/scripts/
+# These ensure Frodo doesn't fail because of a wrong code point assignment:
+export OQS_CODEPOINT_FRODO640AES=65024
+export OQS_CODEPOINT_FRODO640SHAKE=65025
+export OQS_CODEPOINT_FRODO976AES=65026
+# These ensure oqsprovider uses ML-KEM at the right code points
+export OQS_CODEPOINT_MLKEM512=512
+export OQS_CODEPOINT_MLKEM768=513
+export OQS_CODEPOINT_MLKEM1024=514
 $SRCTOP/oqs-provider/scripts/runtests.sh -V
