@@ -677,6 +677,12 @@ void OSSL_DECODER_CTX_free(OSSL_DECODER_CTX *ctx)
         sk_OSSL_DECODER_INSTANCE_pop_free(ctx->decoder_insts,
                                           ossl_decoder_instance_free);
         ossl_pw_clear_passphrase_data(&ctx->pwdata);
+        if (ctx->errkeep != NULL) {
+            ERR_clear_error();
+            OSSL_ERR_STATE_restore(ctx->errkeep);
+            ERR_set_mark();
+            OSSL_ERR_STATE_free(ctx->errkeep);
+        }
         OPENSSL_free(ctx);
     }
 }

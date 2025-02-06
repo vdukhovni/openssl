@@ -7,6 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include <openssl/err.h>
 #include <openssl/core_dispatch.h>
 #include <openssl/types.h>
 #include <openssl/safestack.h>
@@ -156,6 +157,9 @@ struct ossl_decoder_ctx_st {
 
     /* For any function that needs a passphrase reader */
     struct ossl_passphrase_data_st pwdata;
+
+    /* Errors to be retained at the top of the stack. */
+    ERR_STATE *errkeep;
 };
 
 const OSSL_PROPERTY_LIST *
